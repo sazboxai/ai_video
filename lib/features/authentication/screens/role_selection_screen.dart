@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_role.dart';
+import '../screens/auth_screen.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -41,7 +42,14 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 onPressed: selectedRole == null
                     ? null
                     : () {
-                        // Navigate to auth method screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => AuthScreen(
+                              selectedRole: selectedRole!,
+                            ),
+                          ),
+                        );
                       },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.all(16),
