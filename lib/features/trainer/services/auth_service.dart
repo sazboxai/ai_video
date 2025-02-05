@@ -3,6 +3,29 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/trainer_profile.dart';
 
+class Trainer {
+  final String id;
+  final String name;
+  final String? bio;
+  final String? profilePictureUrl;
+
+  Trainer({
+    required this.id,
+    required this.name,
+    this.bio,
+    this.profilePictureUrl,
+  });
+
+  factory Trainer.fromMap(Map<String, dynamic> data, String id) {
+    return Trainer(
+      id: id,
+      name: data['name'] ?? '',
+      bio: data['bio'],
+      profilePictureUrl: data['profilePictureUrl'],
+    );
+  }
+}
+
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -36,6 +59,25 @@ class AuthService {
     } catch (e) {
       print('Error creating trainer profile: $e'); // Debug print
       throw 'Failed to create trainer profile: ${e.toString()}';
+    }
+  }
+
+  // Add this method to get current trainer data
+  Future<Trainer?> getCurrentTrainer() async {
+    try {
+      if (currentUser == null) return null;
+
+      final doc = await _firestore
+          .collection('trainers')
+          .doc(currentUser!.uid)
+          .get();
+
+      if (!doc.exists) return null;
+
+      return Trainer.fromMap(doc.data()!, doc.id);
+    } catch (e) {
+      print('Error getting trainer data: $e');
+      return null;
     }
   }
 } 

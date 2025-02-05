@@ -17,6 +17,7 @@ class MyRoutinesScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Routines'),
+        automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<List<Routine>>(
         stream: _routineService.getTrainerRoutines(_authService.currentUser!.uid),

@@ -78,7 +78,6 @@ To provide personal trainers with a platform to expand their reach, engage users
 - Trainers can edit:
   - **Profile picture**
   - **Username**
-  - **Years of experience**
   - **Bio**
   - **Specializations** (e.g., weight loss, bodybuilding, mobility training).
 - Users can **view trainer profiles**, see their videos, and follow/unfollow trainers.
