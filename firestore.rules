@@ -23,13 +23,12 @@ service cloud.firestore {
       
       // Only trainers can create routines
       allow create: if request.auth != null
-        && exists(/databases/$(database)/documents/trainers/$(request.auth.uid))
-        && isValidRoutine();
+        && exists(/databases/$(database)/documents/trainers/$(request.auth.uid));
       
       // Only the routine owner can update/delete
       allow update: if request.auth != null 
         && request.auth.uid == resource.data.trainerId
-        && isValidRoutine();
+        && request.resource.data.trainerId == resource.data.trainerId;  // Ensure trainerId isn't changed
       
       allow delete: if request.auth != null 
         && request.auth.uid == resource.data.trainerId;

@@ -123,3 +123,23 @@ View (👁️ Icon) – Opens the routine in TikTok-style playback mode for revi
 When a trainer selects Edit, they will be redirected to the Routine Editor, where they can update the routine structure and content.
 
 This setup ensures a smooth and intuitive experience, allowing both trainers and users to navigate workouts effortlessly while providing trainers with easy-to-access editing and management tools. 
+
+### Fixes 
+
+Unsaved Changes Confirmation in Routine Editor
+When editing a routine, if the user makes changes and then presses the back arrow, they are currently taken back to the home screen without being prompted to save. To prevent accidental loss of progress, implement a confirmation dialog that notifies the user about unsaved changes.
+
+Expected Behavior:
+If the user presses the back arrow after making edits, display a confirmation popup:
+"You have unsaved changes. Do you want to save before exiting?"
+Provide three options:
+Save & Exit – Saves the changes and returns to the home screen.
+Discard Changes – Exits without saving.
+Cancel – Stays on the editor screen.
+This ensures users have full control over their edits and prevents accidental data loss. 
+
+### When having problems with pods and firebase versions 
+flutter pub upgrade --major-versions
+pod repo update  
+insdie the Ios folder 
+        pod update
