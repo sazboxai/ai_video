@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../models/trainer_profile.dart';
+import '../services/auth_service.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -16,6 +18,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _bioController = TextEditingController();
   File? _imageFile;
   bool _isLoading = false;
+  final _authService = AuthService();
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -34,17 +37,67 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // TODO: Upload image and create profile
-      // Navigate to trainer home screen
+      String? imageUrl;
+      if (_imageFile != null) {
+        // Upload image to Firebase Storage with timestamp
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final fileName = '${_authService.currentUser!.uid}_$timestamp.jpg';
+        
+        // Use your specific bucket - matching the rules structure
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_pictures')
+            .child(fileName);
+        
+        // Upload with metadata and error handling
+        try {
+          final metadata = SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {
+              'userId': _authService.currentUser!.uid,
+              'uploadTime': DateTime.now().toIso8601String(),
+            },
+          );
+          
+          // Show upload progress (optional)
+          final uploadTask = storageRef.putFile(_imageFile!, metadata);
+          await uploadTask.whenComplete(() => null);
+          
+          // Get download URL
+          imageUrl = await storageRef.getDownloadURL();
+        } catch (storageError) {
+          throw 'Failed to upload image: $storageError';
+        }
+      }
+
+      // Create profile after successful image upload
+      final profile = TrainerProfile(
+        uid: _authService.currentUser!.uid,
+        username: _usernameController.text,
+        photoUrl: imageUrl,
+        bio: _bioController.text,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      await _authService.createTrainerProfile(profile);
+
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/trainer/home');
       }
     } catch (e) {
+      print('Error in profile setup: $e'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -109,7 +162,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   minimumSize: const Size.fromHeight(50),
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator()
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
                     : const Text('Continue'),
               ),
             ],

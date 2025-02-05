@@ -63,46 +63,6 @@ This document outlines the **Trainer Sign-Up and Profile Setup Process** for the
   - Display error message if username is already taken or invalid.
   - Disable the "Continue" button until a valid username is entered.
 
-#### 3.1.2 Profile Picture Upload
-- **Functionality:**
-  - Allow trainers to upload an image from their device gallery or take a new photo using the camera.
-  - Image cropping tool to ensure the picture fits the circular profile picture frame.
-  - Maximum file size: 5MB.
-  - Supported formats: JPEG, PNG.
-- **Default Image:**
-  - If no image is uploaded, display a default placeholder image (e.g., a silhouette).
-
-#### 3.1.3 Bio Field
-- **Functionality:**
-  - Text area for trainers to write a short bio.
-  - Maximum length: 150 characters.
-  - Character counter displayed below the text area.
-- **Validation:**
-  - Bio is optional but recommended.
-  - Disable the "Continue" button if the username is not unique, regardless of the bio.
-
-#### 3.1.4 Continue Button
-- **Behavior:**
-  - Enabled only when:
-    - A unique username is entered.
-    - Profile picture is uploaded (optional but recommended).
-    - Bio is entered (optional but recommended).
-  - Redirects the trainer to the **main trainer home screen**.
-
----
-
-### 3.2 Main Trainer Home Screen Requirements
-#### 3.2.1 Bottom Navigation Bar
-- **My Routines (Stopwatch Icon):**
-  - Default screen displaying a list of routines created by the trainer.
-  - Includes a **Floating Action Button (FAB)** for creating new routines.
-- **Profile (Person Icon):**
-  - Redirects to the trainer's profile screen for viewing and editing details.
-- **Logout (Power Icon):**
-  - Logs the trainer out of the app after confirmation.
-
----
-
 ## 4. Data Models
 
 ### 4.1 User Profile

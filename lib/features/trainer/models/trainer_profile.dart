@@ -23,6 +23,7 @@ class TrainerProfile {
       'bio': bio,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'role': 'trainer',
     };
   }
 
