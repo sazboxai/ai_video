@@ -15,7 +15,7 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
   final _authService = AuthService();
 
   final List<Widget> _screens = [
-    const MyRoutinesScreen(),
+    MyRoutinesScreen(),
     const ProfileScreen(),
   ];
 

@@ -1,103 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
-import '../services/routine_service.dart';
-import '../services/auth_service.dart';
-import '../screens/create_routine_screen.dart';
 import '../screens/routine_player_screen.dart';
 import '../screens/edit_routine_screen.dart';
 
-class MyRoutinesScreen extends StatelessWidget {
-  final RoutineService _routineService = RoutineService();
-  final AuthService _authService = AuthService();
-
-  MyRoutinesScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Routines'),
-      ),
-      body: StreamBuilder<List<Routine>>(
-        stream: _routineService.getTrainerRoutines(_authService.currentUser!.uid),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final routines = snapshot.data ?? [];
-
-          if (routines.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('No routines yet'),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => _navigateToCreateRoutine(context),
-                    child: const Text('Create Your First Routine'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: routines.length,
-            itemBuilder: (context, index) {
-              final routine = routines[index];
-              return RoutineCard(
-                routine: routine,
-                onDelete: () async {
-                  try {
-                    await _routineService.deleteRoutine(routine.id);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Routine deleted')),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: ${e.toString()}'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToCreateRoutine(context),
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
-
-  void _navigateToCreateRoutine(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const CreateRoutineScreen(),
-      ),
-    );
-  }
-}
-
 class RoutineCard extends StatelessWidget {
   final Routine routine;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
 
   const RoutineCard({
     super.key,
     required this.routine,
-    required this.onDelete,
+    this.onDelete,
   });
 
   @override
@@ -117,7 +30,7 @@ class RoutineCard extends StatelessWidget {
           const Divider(height: 0),
           ButtonBar(
             children: [
-              // Play Button
+              // View Button
               IconButton(
                 icon: const Icon(Icons.play_circle_outline),
                 tooltip: 'Play Routine',
@@ -210,8 +123,8 @@ class RoutineCard extends StatelessWidget {
       ),
     );
 
-    if (shouldDelete == true) {
-      onDelete();
+    if (shouldDelete == true && onDelete != null) {
+      onDelete!();
     }
   }
 } 

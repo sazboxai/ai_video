@@ -75,3 +75,51 @@ This document outlines the **Trainer Sign-Up and Profile Setup Process** for the
   "bio": "string",
   "createdAt": "timestamp"
 }
+
+
+
+
+
+Routine Section Implementation
+Now, let’s build the Routine Section, where trainers can create, manage, and showcase their workout routines. This section will allow trainers to design structured workout plans while ensuring an engaging and interactive experience for users. Below are the key features:
+
+1. My Routines (Trainer Dashboard)
+Displays a list of created routines, including engagement analytics (views, likes).
+Trainers can edit or delete existing routines.
+Floating Action Button (+ New Routine) to create a new workout routine.
+2. Routine Creation & Editor
+List view displaying exercises within a routine.
+Add Exercise button (+) to include new exercises.
+Configuration options for each exercise:
+Exercise Name
+Number of Sets
+Video Upload/Recording
+Ability to reorder exercises within a routine.
+Option to delete exercises if necessary.
+3. Routine Viewing (User Experience)
+TikTok-style infinite scrolling for easy discovery of workout routines.
+Each video represents a workout routine, allowing users to preview exercises in a structured flow.
+Users can react (like) to routines and follow trainers for personalized content.
+Search functionality to find trainers by name, category, or specialization.
+Followed Trainers Filter to browse content exclusively from trainers a user follows.
+This structure ensures a seamless and engaging experience for both trainers and users, promoting routine discovery and trainer visibility while maintaining an intuitive workout creation process.
+
+
+
+
+Routine Screen Functionality
+In the Routines Screen, when a trainer selects a routine, it should display the workout videos in a TikTok-style format, allowing users to seamlessly scroll down to view the next exercise in the routine.
+
+Routine Playback Features
+Full-screen vertical video player displaying exercises in sequence.
+Infinite scrolling to move to the next exercise in the routine.
+Tap to pause/play functionality for better user control.
+Routine Management (Trainer Controls)
+Each routine card should include three action buttons:
+
+Edit (📝 Icon) – Opens the Routine Editor, allowing trainers to modify exercises, reorder them, or upload new videos.
+Delete (🗑️ Icon) – Allows trainers to permanently remove the routine after confirmation.
+View (👁️ Icon) – Opens the routine in TikTok-style playback mode for review.
+When a trainer selects Edit, they will be redirected to the Routine Editor, where they can update the routine structure and content.
+
+This setup ensures a smooth and intuitive experience, allowing both trainers and users to navigate workouts effortlessly while providing trainers with easy-to-access editing and management tools. 
