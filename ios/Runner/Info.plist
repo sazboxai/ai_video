@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<string>com.churnless.fitnessaitrainer</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -49,6 +49,8 @@
 	<string>We need access to photo library for profile picture selection</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to camera for profile picture capture</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need access to microphone for recording exercise videos with audio</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
