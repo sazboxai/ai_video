@@ -5,6 +5,8 @@ import 'firebase_options.dart';
 
 // Import your home screen (create this file if it doesn't exist)
 import 'features/home/screens/home_screen.dart';
+import 'features/trainer/screens/profile_setup_screen.dart';
+import 'features/trainer/screens/trainer_home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +31,9 @@ class MyApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const RoleSelectionScreen(),
-        '/home': (context) => const HomeScreen(), // Add your home screen
+        '/home': (context) => const HomeScreen(),
+        '/trainer/setup': (context) => const ProfileSetupScreen(),
+        '/trainer/home': (context) => const TrainerHomeScreen(),
       },
     );
   }

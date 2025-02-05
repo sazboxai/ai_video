@@ -61,16 +61,29 @@ class _AuthScreenState extends State<AuthScreen> {
           _emailController.text,
           _passwordController.text,
         );
+        // For sign in, check role and navigate accordingly
+        if (mounted) {
+          if (widget.selectedRole == UserRole.trainer) {
+            Navigator.of(context).pushReplacementNamed('/trainer/home');
+          } else {
+            Navigator.of(context).pushReplacementNamed('/home');
+          }
+        }
       } else {
+        // For sign up
         await _authService.signUpWithEmailPassword(
           _emailController.text,
           _passwordController.text,
           widget.selectedRole,
         );
-      }
-      // Navigate to home screen on success
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // New trainers should set up their profile first
+        if (mounted) {
+          if (widget.selectedRole == UserRole.trainer) {
+            Navigator.of(context).pushReplacementNamed('/trainer/setup');
+          } else {
+            Navigator.of(context).pushReplacementNamed('/home');
+          }
+        }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
