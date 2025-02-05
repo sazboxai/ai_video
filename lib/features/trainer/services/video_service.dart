@@ -30,13 +30,28 @@ class VideoService {
           .child(trainerId)
           .child('${exerciseName}_$timestamp.mp4');
 
-      final uploadTask = ref.putFile(
-        File(videoPath),
-        SettableMetadata(contentType: 'video/mp4'),
+      // Set proper metadata for video streaming
+      final metadata = SettableMetadata(
+        contentType: 'video/mp4',
+        customMetadata: {
+          'Cache-Control': 'public, max-age=31536000',
+        },
+        cacheControl: 'public, max-age=31536000',
       );
 
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      // Upload the file
+      final uploadTask = ref.putFile(
+        File(videoPath),
+        metadata,
+      );
+
+      // Wait for upload to complete
+      await uploadTask.whenComplete(() => null);
+
+      // Get a download URL that supports range requests
+      final downloadUrl = await ref.getDownloadURL();
+      
+      return downloadUrl;
     } catch (e) {
       throw 'Failed to upload video: $e';
     }

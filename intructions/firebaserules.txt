@@ -17,6 +17,7 @@ service firebase.storage {
         && request.auth.uid == trainerId
         && request.resource.size < 50 * 1024 * 1024 // 50MB max
         && request.resource.contentType.matches('video/.*');
+        allow get: if request.auth != null;
     }
   }
 }

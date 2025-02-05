@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Craft rules based on data in your Firestore database
+// allow write: if firestore.get(
+//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Profile Pictures
+    match /profile_pictures/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024 // 5MB max
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Exercise Videos
+    match /exercise_videos/{trainerId}/{videoName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null 
+        && request.auth.uid == trainerId
+        && request.resource.size < 50 * 1024 * 1024;
+      
+      // Allow range requests
+      allow get: if request.auth != null;
+      
+      // Allow HEAD requests for video streaming
+      allow get: if request.auth != null;
+      
+      // Allow range requests
+      function validateCorsHeaders() {
+        return response.headers.merge({
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET',
+          'Access-Control-Allow-Headers': 'Range',
+          'Access-Control-Expose-Headers': 'Content-Length, Content-Range',
+          'Content-Type': 'video/mp4',
+          'Accept-Ranges': 'bytes'
+        });
+      }
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // CORS configuration for video streaming
+    function corsHeaders() {
+      return {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST, DELETE',
+        'Access-Control-Allow-Headers': 'Content-Type, Content-Length, Content-Range, Accept-Ranges',
+        'Access-Control-Max-Age': '3600'
+      };
+    }
+  }
+}

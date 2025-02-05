@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Trainer Profiles
+    match /trainers/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null 
+        && request.auth.uid == userId;
+      allow delete: if false; // Prevent profile deletion
+
+      // Validate trainer data
+      function isValidTrainer() {
+        let trainer = request.resource.data;
+        return trainer.name.size() > 0 
+          && trainer.name.size() <= 100
+          && (!('bio' in trainer) || trainer.bio.size() <= 500);
+      }
+    }
+    
+    // Routines
+    match /routines/{routineId} {
+      allow read: if request.auth != null;
+      
+      // Only trainers can create routines
+      allow create: if request.auth != null
+        && exists(/databases/$(database)/documents/trainers/$(request.auth.uid))
+        && isValidRoutine();
+      
+      // Only the routine owner can update/delete
+      allow update: if request.auth != null 
+        && request.auth.uid == resource.data.trainerId
+        && isValidRoutine();
+      
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.trainerId;
+        
+      // Validate routine data
+      function isValidRoutine() {
+        let routine = request.resource.data;
+        return routine.title.size() > 0 
+          && routine.title.size() <= 100
+          && routine.description.size() <= 500
+          && routine.exercises.size() > 0
+          && routine.exercises.size() <= 50  // Maximum 50 exercises per routine
+          && isValidExerciseList(routine.exercises);
+      }
+
+      // Validate exercise data
+      function isValidExerciseList(exercises) {
+        return exercises.hasAll(['name', 'sets', 'order'])
+          && exercises[0].name.size() > 0
+          && exercises[0].name.size() <= 100
+          && exercises[0].sets > 0
+          && exercises[0].sets <= 100;  // Maximum 100 sets
+      }
+    }
+    
+    // Exercise Stats
+    match /routines/{routineId}/stats/{statId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && exists(/databases/$(database)/documents/routines/$(routineId))
+        && get(/databases/$(database)/documents/routines/$(routineId)).data.trainerId == request.auth.uid;
+    }
+  }
+}

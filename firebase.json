@@ -1,1 +1,48 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"fitnessaitrainer","appId":"1:898160228787:android:eed7d9605e2cb5dbeef3c6","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"fitnessaitrainer","appId":"1:898160228787:ios:9f50fa13148397dfeef3c6","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"macos":{"default":{"projectId":"fitnessaitrainer","appId":"1:898160228787:ios:9f50fa13148397dfeef3c6","uploadDebugSymbols":false,"fileOutput":"macos/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"fitnessaitrainer","configurations":{"android":"1:898160228787:android:eed7d9605e2cb5dbeef3c6","ios":"1:898160228787:ios:9f50fa13148397dfeef3c6","macos":"1:898160228787:ios:9f50fa13148397dfeef3c6","web":"1:898160228787:web:3421874b86d91a44eef3c6","windows":"1:898160228787:web:686a16ed0908080deef3c6"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "fitnessaitrainer",
+          "appId": "1:898160228787:android:eed7d9605e2cb5dbeef3c6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "fitnessaitrainer",
+          "appId": "1:898160228787:ios:9f50fa13148397dfeef3c6",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "fitnessaitrainer",
+          "appId": "1:898160228787:ios:9f50fa13148397dfeef3c6",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "fitnessaitrainer",
+          "configurations": {
+            "android": "1:898160228787:android:eed7d9605e2cb5dbeef3c6",
+            "ios": "1:898160228787:ios:9f50fa13148397dfeef3c6",
+            "macos": "1:898160228787:ios:9f50fa13148397dfeef3c6",
+            "web": "1:898160228787:web:3421874b86d91a44eef3c6",
+            "windows": "1:898160228787:web:686a16ed0908080deef3c6"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}

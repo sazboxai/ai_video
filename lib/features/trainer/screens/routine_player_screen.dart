@@ -16,8 +16,10 @@ class RoutinePlayerScreen extends StatefulWidget {
 
 class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
   late PageController _pageController;
-  late List<VideoPlayerController> _controllers;
+  List<VideoPlayerController> _controllers = [];
   int _currentIndex = 0;
+  bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -27,23 +29,58 @@ class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
   }
 
   Future<void> _initializeControllers() async {
-    // Initialize controllers for exercises with videos
-    _controllers = widget.routine.exercises
-        .where((e) => e.videoUrl != null)
-        .map((e) => VideoPlayerController.network(e.videoUrl!))
-        .toList();
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    // Initialize all controllers
-    for (var controller in _controllers) {
-      await controller.initialize();
-      controller.setLooping(true);
-    }
+    try {
+      final exercisesWithVideos = widget.routine.exercises
+          .where((e) => e.videoUrl != null)
+          .toList();
 
-    // Start playing the first video
-    if (_controllers.isNotEmpty) {
-      _controllers.first.play();
+      for (var exercise in exercisesWithVideos) {
+        try {
+          final controller = VideoPlayerController.networkUrl(
+            Uri.parse(exercise.videoUrl!),
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+            httpHeaders: {
+              'Range': 'bytes=0-',
+            },
+          );
+
+          await controller.initialize();
+          controller.setLooping(true);
+          _controllers.add(controller);
+        } catch (e) {
+          print('Error initializing video for ${exercise.name}: $e');
+          // Try reinitializing with different options
+          try {
+            final retryController = VideoPlayerController.networkUrl(
+              Uri.parse(exercise.videoUrl!),
+              videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+            );
+            await retryController.initialize();
+            retryController.setLooping(true);
+            _controllers.add(retryController);
+          } catch (retryError) {
+            print('Retry failed for ${exercise.name}: $retryError');
+          }
+        }
+      }
+
+      if (_controllers.isNotEmpty) {
+        _controllers.first.play();
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading videos: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
-    setState(() {});
   }
 
   @override
@@ -56,11 +93,9 @@ class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
   }
 
   void _onPageChanged(int index) {
-    // Pause previous video
     if (_currentIndex < _controllers.length) {
       _controllers[_currentIndex].pause();
     }
-    // Play current video
     if (index < _controllers.length) {
       _controllers[index].play();
     }
@@ -69,11 +104,57 @@ class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _initializeControllers,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_controllers.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(
+            'No videos available in this routine',
+            style: TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Video PageView
           PageView.builder(
             scrollDirection: Axis.vertical,
             controller: _pageController,
@@ -88,13 +169,24 @@ class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
               );
             },
           ),
-          // Close button
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white),
-                onPressed: () => Navigator.pop(context),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Text(
+                    '${_currentIndex + 1}/${_controllers.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -126,13 +218,14 @@ class _VideoPlayerItem extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Video
           controller.value.isInitialized
-              ? VideoPlayer(controller)
+              ? AspectRatio(
+                  aspectRatio: controller.value.aspectRatio,
+                  child: VideoPlayer(controller),
+                )
               : const Center(
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
-          // Exercise Info Overlay
           Positioned(
             left: 16,
             bottom: 80,
