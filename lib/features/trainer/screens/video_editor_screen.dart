@@ -10,12 +10,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 class VideoEditorScreen extends StatelessWidget {
-  final String videoPath;
+  final File videoFile;
   final Function(String) onVideoEdited;
 
   const VideoEditorScreen({
     Key? key,
-    required this.videoPath,
+    required this.videoFile,
     required this.onVideoEdited,
   }) : super(key: key);
 
@@ -53,7 +53,7 @@ class VideoEditorScreen extends StatelessWidget {
       );
 
       // Create source from video path
-      final source = Source.fromVideo(videoPath);
+      final source = Source.fromVideo(videoFile.path);
 
       // Open the editor
       final result = await IMGLYEditor.openEditor(
@@ -77,15 +77,14 @@ class VideoEditorScreen extends StatelessWidget {
         
         // Copy the edited video to the original path
         final editedFile = File(normalizedArtifactPath);
-        final originalFile = File(videoPath);
         
         if (await editedFile.exists()) {
           print('Found edited video at: $normalizedArtifactPath');
-          await originalFile.writeAsBytes(await editedFile.readAsBytes());
-          print('Copied edited video to original path: ${originalFile.path}');
+          await videoFile.writeAsBytes(await editedFile.readAsBytes());
+          print('Copied edited video to original path: ${videoFile.path}');
           
           // Handle the edited video using the original path
-          onVideoEdited(originalFile.path);
+          onVideoEdited(videoFile.path);
         } else {
           print('Edited video file not found at: $normalizedArtifactPath');
           throw Exception('Edited video file not found');
@@ -106,20 +105,35 @@ class VideoEditorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Edit Video'),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
+            const Text(
               'Ready to edit your video',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => _openEditor(context),
               child: const Text('Start Editing'),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                // Return the original video file without editing
+                onVideoEdited(videoFile.path);
+              },
+              child: const Text('Use Original'),
             ),
           ],
         ),

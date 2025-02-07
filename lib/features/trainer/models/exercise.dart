@@ -9,6 +9,8 @@ class Exercise {
   final String? thumbnailUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<String> equipment; // List of required equipment
+  final List<String> labels; // Exercise labels/tags
 
   Exercise({
     required this.exerciseId,
@@ -17,6 +19,8 @@ class Exercise {
     required this.defaultSets,
     this.videoUrl,
     this.thumbnailUrl,
+    this.equipment = const [],
+    this.labels = const [],
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : this.createdAt = createdAt ?? DateTime.now(),
@@ -30,6 +34,8 @@ class Exercise {
       'defaultSets': defaultSets,
       'videoUrl': videoUrl,
       'thumbnailUrl': thumbnailUrl,
+      'equipment': equipment,
+      'labels': labels,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -43,6 +49,8 @@ class Exercise {
       defaultSets: json['defaultSets'] as int,
       videoUrl: json['videoUrl'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
+      equipment: (json['equipment'] as List<dynamic>?)?.cast<String>() ?? [],
+      labels: (json['labels'] as List<dynamic>?)?.cast<String>() ?? [],
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -59,6 +67,8 @@ class Exercise {
     int? defaultSets,
     String? videoUrl,
     String? thumbnailUrl,
+    List<String>? equipment,
+    List<String>? labels,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -69,6 +79,8 @@ class Exercise {
       defaultSets: defaultSets ?? this.defaultSets,
       videoUrl: videoUrl ?? this.videoUrl,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      equipment: equipment ?? this.equipment,
+      labels: labels ?? this.labels,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
