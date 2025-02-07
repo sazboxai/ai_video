@@ -97,16 +97,35 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithGoogle(widget.selectedRole);
+      final userCredential = await _authService.signInWithGoogle(widget.selectedRole);
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
+        // Check if this is a new user (first time sign in)
+        if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+          // New trainers should set up their profile
+          if (widget.selectedRole == UserRole.trainer) {
+            Navigator.of(context).pushReplacementNamed('/trainer/setup');
+          } else {
+            Navigator.of(context).pushReplacementNamed('/home');
+          }
+        } else {
+          // Existing users go to their respective home screens
+          if (widget.selectedRole == UserRole.trainer) {
+            Navigator.of(context).pushReplacementNamed('/trainer/home');
+          } else {
+            Navigator.of(context).pushReplacementNamed('/home');
+          }
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
