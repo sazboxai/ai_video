@@ -43,99 +43,41 @@ class ExerciseService {
   }
 
   // Create a new exercise
-  Future<Exercise> createExercise({
+  Future<ExerciseCreationResult> createExercise({
+    required String name,
     required String trainerId,
-    required String name,
-    required int defaultSets,
-    String? localVideoPath,
+    required String localVideoPath,
+    List<String> equipment = const [],
+    List<String> labels = const [],
   }) async {
-    try {
-      // Create exercise document first
-      final exerciseId = _firestore.collection('exercises').doc().id;
-      String? videoUrl;
-      String? thumbnailUrl;
+    // Create a new document reference
+    final exerciseRef = _firestore.collection('exercises').doc();
+    final exerciseId = exerciseRef.id;
 
-      // Upload video if provided
-      if (localVideoPath != null) {
-        final uploadResult = await _videoService.uploadVideo(
-          localVideoPath,
-          exerciseId,
-        );
-        videoUrl = uploadResult.videoUrl;
-        thumbnailUrl = uploadResult.thumbnailUrl;
-      }
+    print('[DEBUG] Uploading video for new exercise');
+    final uploadResult = await _videoService.uploadVideo(localVideoPath, exerciseId);
 
-      // Create exercise
-      final exercise = Exercise(
-        exerciseId: exerciseId,
-        trainerId: trainerId,
-        name: name,
-        defaultSets: defaultSets,
-        videoUrl: videoUrl,
-        thumbnailUrl: thumbnailUrl,
-      );
-
-      // Save to Firestore
-      await _firestore
-          .collection('exercises')
-          .doc(exerciseId)
-          .set(exercise.toJson());
-
-      return exercise;
-    } catch (e) {
-      throw 'Failed to create exercise: $e';
-    }
-  }
-
-  // Update exercise details
-  Future<Exercise> updateExercise({
-    required String exerciseId,
-    required String name,
-    required int defaultSets,
-    String? localVideoPath,
-  }) async {
-    // Get existing exercise
-    final existingExercise = await getExerciseById(exerciseId);
-    if (existingExercise == null) {
-      throw 'Exercise not found';
-    }
-
-    String? videoUrl = existingExercise.videoUrl;
-    String? thumbnailUrl = existingExercise.thumbnailUrl;
-
-    // Upload new video if provided
-    if (localVideoPath != null) {
-      // Delete old video and thumbnail if they exist
-      if (existingExercise.videoUrl != null) {
-        await _videoService.deleteVideo(exerciseId);
-      }
-
-      // Upload new video
-      final uploadResult = await _videoService.uploadVideo(
-        localVideoPath,
-        exerciseId,
-      );
-      videoUrl = uploadResult.videoUrl;
-      thumbnailUrl = uploadResult.thumbnailUrl;
-    }
-
-    // Update exercise
     final exercise = Exercise(
       exerciseId: exerciseId,
-      trainerId: existingExercise.trainerId,
+      trainerId: trainerId,
       name: name,
-      defaultSets: defaultSets,
-      videoUrl: videoUrl,
-      thumbnailUrl: thumbnailUrl,
+      defaultSets: 3,
+      videoUrl: uploadResult.videoUrl,
+      thumbnailUrl: uploadResult.thumbnailUrl,
+      equipment: equipment,
+      labels: labels,
     );
 
-    // Save to Firestore
+    await exerciseRef.set(exercise.toJson());
+    return ExerciseCreationResult(exercise: exercise, videoUrl: uploadResult.videoUrl);
+  }
+
+  // Update an exercise
+  Future<void> updateExercise(Exercise exercise) async {
     await _firestore
         .collection('exercises')
-        .doc(exerciseId)
+        .doc(exercise.exerciseId)
         .update(exercise.toJson());
-
-    return exercise;
   }
 
   // Update exercise video
@@ -143,38 +85,20 @@ class ExerciseService {
     Exercise exercise,
     String localVideoPath,
   ) async {
-    try {
-      // Delete old video if it exists
-      if (exercise.videoUrl != null) {
-        await _videoService.deleteVideo(exercise.exerciseId);
-      }
+    print('[DEBUG] Uploading new video for exercise: ${exercise.exerciseId}');
+    final uploadResult = await _videoService.uploadVideo(localVideoPath, exercise.exerciseId);
 
-      // Upload new video
-      final uploadResult = await _videoService.uploadVideo(
-        localVideoPath,
-        exercise.exerciseId,
-      );
+    final updatedExercise = exercise.copyWith(
+      videoUrl: uploadResult.videoUrl,
+      thumbnailUrl: uploadResult.thumbnailUrl,
+      updatedAt: DateTime.now(),
+    );
 
-      // Update exercise with new video URLs
-      final updatedExercise = exercise.copyWith(
-        videoUrl: uploadResult.videoUrl,
-        thumbnailUrl: uploadResult.thumbnailUrl,
-      );
-
-      // Save to Firestore
-      await updateExercise(
-        exerciseId: updatedExercise.exerciseId,
-        name: updatedExercise.name,
-        defaultSets: updatedExercise.defaultSets,
-      );
-      
-      return updatedExercise;
-    } catch (e) {
-      throw 'Failed to update exercise video: $e';
-    }
+    await updateExercise(updatedExercise);
+    return updatedExercise;
   }
 
-  // Delete exercise and its video
+  // Delete an exercise
   Future<void> deleteExercise(String exerciseId) async {
     try {
       // Delete video and thumbnail if they exist
@@ -189,4 +113,14 @@ class ExerciseService {
       throw 'Failed to delete exercise: $e';
     }
   }
+}
+
+class ExerciseCreationResult {
+  final Exercise exercise;
+  final String videoUrl;
+
+  ExerciseCreationResult({
+    required this.exercise,
+    required this.videoUrl,
+  });
 }

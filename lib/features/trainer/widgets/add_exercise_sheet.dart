@@ -7,11 +7,12 @@ import '../services/routine_service.dart';
 import '../services/video_service.dart';
 import '../services/auth_service.dart';
 import '../screens/video_editor_screen.dart';
+import '../utils/exercise_constants.dart';
 
 class AddExerciseSheet extends StatefulWidget {
   final String routineId;
   final Function(Exercise) onExerciseAdded;
-  final Exercise? exercise; // Exercise to edit, null for new exercise
+  final Exercise? exercise;
 
   const AddExerciseSheet({
     Key? key,
@@ -37,11 +38,20 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
   String? _errorMessage;
   bool get _isEditing => widget.exercise != null;
 
+  // New controllers for equipment and labels
+  final _equipmentController = TextEditingController();
+  final _labelController = TextEditingController();
+  List<String> _selectedEquipment = [];
+  List<String> _selectedLabels = [];
+
   @override
   void initState() {
     super.initState();
     if (_isEditing) {
       _nameController.text = widget.exercise!.name;
+      _selectedEquipment = List.from(widget.exercise!.equipment);
+      _selectedLabels = List.from(widget.exercise!.labels);
+      
       // Get current sets from routine
       _routineService.getRoutineById(widget.routineId).then((routine) {
         if (routine != null && mounted) {
@@ -56,135 +66,128 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     }
   }
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _setsController.dispose();
+    _equipmentController.dispose();
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  void _addEquipment(String equipment) {
+    if (!_selectedEquipment.contains(equipment)) {
+      setState(() {
+        _selectedEquipment.add(equipment);
+        _equipmentController.clear();
+      });
+    }
+  }
+
+  void _removeEquipment(String equipment) {
+    setState(() {
+      _selectedEquipment.remove(equipment);
+    });
+  }
+
+  void _addLabel(String label) {
+    if (!_selectedLabels.contains(label)) {
+      setState(() {
+        _selectedLabels.add(label);
+        _labelController.clear();
+      });
+    }
+  }
+
+  void _removeLabel(String label) {
+    setState(() {
+      _selectedLabels.remove(label);
+    });
+  }
+
   Future<void> _pickVideo() async {
     try {
       final ImagePicker picker = ImagePicker();
-      
-      // Show dialog to choose between camera and gallery
-      final source = await showDialog<ImageSource>(
-        context: context,
-        builder: (BuildContext context) => AlertDialog(
-          title: const Text('Choose video source'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Record Video'),
-                onTap: () => Navigator.pop(context, ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('Choose from Gallery'),
-                onTap: () => Navigator.pop(context, ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-      );
-      
-      if (source == null) return;
-      
-      final XFile? video = await picker.pickVideo(source: source);
-      
-      if (video != null) {
-        // Show video editor screen
-        if (!mounted) return;
+      final XFile? pickedFile = await picker.pickVideo(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        final videoFile = File(pickedFile.path);
         
-        final result = await Navigator.push(
+        // Navigate to video editor
+        final editedVideoPath = await Navigator.push<String>(
           context,
           MaterialPageRoute(
             builder: (context) => VideoEditorScreen(
-              videoPath: video.path,
-              onVideoEdited: (String editedPath) {
-                setState(() {
-                  _videoPath = editedPath;
-                });
-                Navigator.pop(context);
+              videoFile: videoFile,
+              onVideoEdited: (path) {
+                Navigator.pop(context, path);
               },
             ),
           ),
         );
 
-        if (result == null) {
-          // User cancelled editing
+        if (editedVideoPath != null && mounted) {
           setState(() {
-            _videoPath = video.path;
+            _videoPath = editedVideoPath;
+            _errorMessage = null;
           });
         }
       }
     } catch (e) {
       print('Error picking video: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to pick video: $e')),
-      );
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to pick video: $e';
+        });
+      }
     }
   }
 
   Future<void> _saveExercise() async {
-    if (_nameController.text.isEmpty) {
+    final name = _nameController.text.trim();
+    final setsText = _setsController.text.trim();
+
+    if (name.isEmpty) {
       setState(() => _errorMessage = 'Please enter an exercise name');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter an exercise name')),
-      );
       return;
     }
 
-    final sets = int.tryParse(_setsController.text);
+    final sets = int.tryParse(setsText);
     if (sets == null || sets <= 0) {
       setState(() => _errorMessage = 'Please enter a valid number of sets');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid number of sets')),
-      );
       return;
     }
 
     setState(() {
-      _isUploading = true;
       _errorMessage = null;
+      _isUploading = true;
     });
 
     try {
-      // Check authentication state
-      await _authService.checkAuthState();
-      
-      // Get current user
-      final user = _authService.currentUser;
-      if (user == null) {
+      final userId = _authService.currentUser?.uid;
+      if (userId == null) {
         throw 'User not authenticated';
-      }
-
-      final trainerId = user.uid;
-
-      // Validate video if provided
-      if (_videoPath != null) {
-        print('[DEBUG] Validating video at path: $_videoPath');
-        final videoFile = File(_videoPath!);
-        
-        if (!await videoFile.exists()) {
-          throw 'Selected video file not found';
-        }
-
-        final videoSize = await videoFile.length();
-        print('[DEBUG] Video size: ${(videoSize / 1024 / 1024).toStringAsFixed(2)}MB');
-        
-        if (videoSize > 50 * 1024 * 1024) {
-          throw 'Video size must be less than 50MB';
-        }
       }
 
       Exercise exercise;
       if (_isEditing) {
-        print('[DEBUG] Updating existing exercise: ${widget.exercise!.exerciseId}');
         // Update existing exercise
-        exercise = await _exerciseService.updateExercise(
-          exerciseId: widget.exercise!.exerciseId,
-          name: _nameController.text,
-          defaultSets: sets,
-          localVideoPath: _videoPath,
+        exercise = widget.exercise!.copyWith(
+          name: name,
+          equipment: _selectedEquipment,
+          labels: _selectedLabels,
+          updatedAt: DateTime.now(),
         );
-
+        
+        if (_videoPath != null) {
+          exercise = await _exerciseService.updateExerciseVideo(
+            exercise,
+            _videoPath!,
+          );
+        }
+        
+        await _exerciseService.updateExercise(exercise);
+        
         // Update sets in routine
         await _routineService.updateExerciseSets(
           widget.routineId,
@@ -192,14 +195,20 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
           sets,
         );
       } else {
-        print('[DEBUG] Creating new exercise');
         // Create new exercise
-        exercise = await _exerciseService.createExercise(
-          trainerId: trainerId,
-          name: _nameController.text,
-          defaultSets: sets,
-          localVideoPath: _videoPath,
+        if (_videoPath == null) {
+          throw 'Please select a video';
+        }
+
+        final result = await _exerciseService.createExercise(
+          name: name,
+          trainerId: userId,
+          localVideoPath: _videoPath!,
+          equipment: _selectedEquipment,
+          labels: _selectedLabels,
         );
+
+        exercise = result.exercise;
 
         // Add exercise reference to the routine
         final routine = await _routineService.getRoutineById(widget.routineId);
@@ -257,97 +266,181 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
         right: 16,
         top: 16,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            _isEditing ? 'Edit Exercise' : 'Add Exercise',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Exercise Name',
-              border: OutlineInputBorder(),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _isEditing ? 'Edit Exercise' : 'Add Exercise',
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _setsController,
-            decoration: const InputDecoration(
-              labelText: 'Number of Sets',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Exercise Name',
+                border: OutlineInputBorder(),
+              ),
             ),
-            keyboardType: TextInputType.number,
-          ),
-          const SizedBox(height: 16),
-          if (!_isEditing || _videoPath != null) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _isUploading
-                      ? null
-                      : _pickVideo,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Record Video'),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _setsController,
+              decoration: const InputDecoration(
+                labelText: 'Number of Sets',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 16),
+            
+            // Equipment Section
+            Text(
+              'Equipment (Optional)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text.isEmpty) {
+                  return ExerciseConstants.predefinedEquipment;
+                }
+                return ExerciseConstants.predefinedEquipment.where((equipment) =>
+                    equipment.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+              },
+              onSelected: _addEquipment,
+              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                _equipmentController.text = textEditingController.text;
+                return TextField(
+                  controller: _equipmentController,
+                  focusNode: focusNode,
+                  onChanged: (value) => textEditingController.text = value,
+                  decoration: InputDecoration(
+                    labelText: 'Add Equipment',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        if (_equipmentController.text.isNotEmpty) {
+                          _addEquipment(_equipmentController.text);
+                        }
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (_selectedEquipment.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _selectedEquipment.map((equipment) {
+                  return Chip(
+                    label: Text(equipment),
+                    onDeleted: () => _removeEquipment(equipment),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 16),
+            
+            // Labels Section
+            Text(
+              'Labels (Optional)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Autocomplete<String>(
+              optionsBuilder: (TextEditingValue textEditingValue) {
+                if (textEditingValue.text.isEmpty) {
+                  return ExerciseConstants.predefinedLabels;
+                }
+                return ExerciseConstants.predefinedLabels.where((label) =>
+                    label.toLowerCase().contains(textEditingValue.text.toLowerCase()));
+              },
+              onSelected: _addLabel,
+              fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                _labelController.text = textEditingController.text;
+                return TextField(
+                  controller: _labelController,
+                  focusNode: focusNode,
+                  onChanged: (value) => textEditingController.text = value,
+                  decoration: InputDecoration(
+                    labelText: 'Add Label',
+                    border: const OutlineInputBorder(),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.add),
+                      onPressed: () {
+                        if (_labelController.text.isNotEmpty) {
+                          _addLabel(_labelController.text);
+                        }
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (_selectedLabels.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: _selectedLabels.map((label) {
+                  return Chip(
+                    label: Text(label),
+                    onDeleted: () => _removeLabel(label),
+                  );
+                }).toList(),
+              ),
+            ],
+            const SizedBox(height: 16),
+
+            if (!_isEditing || _videoPath != null) ...[
+              Center(
+                child: ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _pickVideo,
+                  icon: const Icon(Icons.video_call),
+                  label: const Text('Add Video'),
                 ),
-                ElevatedButton.icon(
-                  onPressed: _isUploading
-                      ? null
-                      : _pickVideo,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Gallery'),
+              ),
+              if (_videoPath != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Video selected',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
+            ],
+            if (_isEditing && _videoPath == null && widget.exercise!.videoUrl != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Current video will be kept',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Theme.of(context).primaryColor),
+              ),
+            ],
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _errorMessage!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _isUploading ? null : _saveExercise,
+              child: _isUploading
+                  ? const CircularProgressIndicator()
+                  : Text(_isEditing ? 'Update Exercise' : 'Add Exercise'),
             ),
+            const SizedBox(height: 16),
           ],
-          if (_isEditing && _videoPath == null && widget.exercise!.videoUrl != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Current video will be kept',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).primaryColor),
-            ),
-          ] else if (_videoPath != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              'New video selected',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).primaryColor),
-            ),
-          ],
-          if (_errorMessage != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _isUploading ? null : _saveExercise,
-            child: _isUploading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Text(_isEditing ? 'Save Changes' : 'Add Exercise'),
-          ),
-          const SizedBox(height: 16),
-        ],
+        ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _setsController.dispose();
-    super.dispose();
   }
 }
