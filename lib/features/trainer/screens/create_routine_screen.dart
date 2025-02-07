@@ -1,85 +1,81 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
+import '../models/exercise_ref.dart';
 import '../services/routine_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/add_exercise_sheet.dart';
-import '../widgets/exercise_card.dart';
 
 class CreateRoutineScreen extends StatefulWidget {
-  const CreateRoutineScreen({super.key});
+  const CreateRoutineScreen({Key? key}) : super(key: key);
 
   @override
   State<CreateRoutineScreen> createState() => _CreateRoutineScreenState();
 }
 
 class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final List<Exercise> _exercises = [];
-  bool _isLoading = false;
   final _routineService = RoutineService();
   final _authService = AuthService();
+  
+  String _difficulty = 'Beginner';
+  bool _isCreating = false;
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addExercise() async {
-    final exercise = await showModalBottomSheet<Exercise>(
+  Future<void> _showAddExerciseSheet(String routineId) async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => const AddExerciseSheet(),
+      builder: (context) => AddExerciseSheet(
+        routineId: routineId,
+        onExerciseAdded: (exercise) {
+          // Removed setState(() => _exercises.add(exercise));
+        },
+      ),
     );
-
-    if (exercise != null) {
-      setState(() {
-        _exercises.add(exercise);
-      });
-    }
   }
 
-  Future<void> _saveRoutine() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_exercises.isEmpty) {
+  Future<void> _createRoutine() async {
+    if (_titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add at least one exercise'),
-          backgroundColor: Colors.red,
-        ),
+        const SnackBar(content: Text('Please enter a routine title')),
       );
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() => _isCreating = true);
 
     try {
+      final trainerId = _authService.currentUser?.uid;
+      if (trainerId == null) throw 'User not authenticated';
+
+      // Create routine first
       final routine = Routine(
-        id: '', // Will be set by Firestore
-        trainerId: _authService.currentUser!.uid,
+        routineId: DateTime.now().millisecondsSinceEpoch.toString(),
+        trainerId: trainerId,
         title: _titleController.text,
         description: _descriptionController.text,
-        exercises: _exercises,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
+        difficulty: _difficulty,
+        exerciseRefs: [], // Start with empty list
       );
 
-      await _routineService.createRoutine(routine);
+      // Save routine and get its ID
+      final routineId = await _routineService.createRoutine(routine);
+
+      // Show bottom sheet to add first exercise
+      if (mounted) {
+        await _showAddExerciseSheet(routineId);
+      }
+
+      // Navigate back after creating routine
       if (mounted) {
         Navigator.pop(context);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error creating routine: $e')),
       );
     } finally {
-      setState(() => _isLoading = false);
+      setState(() => _isCreating = false);
     }
   }
 
@@ -88,113 +84,64 @@ class _CreateRoutineScreenState extends State<CreateRoutineScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Routine'),
-        actions: [
-          if (_isLoading)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-            )
-          else
-            IconButton(
-              onPressed: _saveRoutine,
-              icon: const Icon(Icons.check),
-            ),
-        ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
+            TextField(
               controller: _titleController,
               decoration: const InputDecoration(
-                labelText: 'Title',
+                labelText: 'Routine Title',
                 border: OutlineInputBorder(),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
             ),
             const SizedBox(height: 16),
-            TextFormField(
+            TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(
-                labelText: 'Description',
+                labelText: 'Description (Optional)',
                 border: OutlineInputBorder(),
               ),
               maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a description';
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              value: _difficulty,
+              decoration: const InputDecoration(
+                labelText: 'Difficulty',
+                border: OutlineInputBorder(),
+              ),
+              items: ['Beginner', 'Intermediate', 'Advanced']
+                  .map((level) => DropdownMenuItem(
+                        value: level,
+                        child: Text(level),
+                      ))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() => _difficulty = value);
                 }
-                return null;
               },
             ),
             const SizedBox(height: 24),
-            Text(
-              'Exercises',
-              style: Theme.of(context).textTheme.titleLarge,
+            ElevatedButton(
+              onPressed: _isCreating ? null : _createRoutine,
+              child: _isCreating
+                  ? const CircularProgressIndicator()
+                  : const Text('Create Routine'),
             ),
-            const SizedBox(height: 8),
-            if (_exercises.isEmpty)
-              const Center(
-                child: Text('No exercises added yet'),
-              )
-            else
-              ReorderableListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _exercises.length,
-                itemBuilder: (context, index) {
-                  final exercise = _exercises[index];
-                  return ExerciseCard(
-                    key: ValueKey(exercise.hashCode),
-                    exercise: exercise,
-                    onDelete: () {
-                      setState(() {
-                        _exercises.removeAt(index);
-                      });
-                    },
-                  );
-                },
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (oldIndex < newIndex) {
-                      newIndex -= 1;
-                    }
-                    final item = _exercises.removeAt(oldIndex);
-                    _exercises.insert(newIndex, item);
-                    
-                    // Update order numbers
-                    for (var i = 0; i < _exercises.length; i++) {
-                      final exercise = _exercises[i];
-                      _exercises[i] = Exercise(
-                        name: exercise.name,
-                        sets: exercise.sets,
-                        videoUrl: exercise.videoUrl,
-                        order: i,
-                      );
-                    }
-                  });
-                },
-              ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addExercise,
-        child: const Icon(Icons.add),
-      ),
     );
   }
-} 
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+}

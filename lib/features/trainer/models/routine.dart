@@ -1,89 +1,98 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'exercise_ref.dart';
 
 class Routine {
-  final String id;
+  final String routineId;
   final String trainerId;
   final String title;
   final String description;
+  final String difficulty;
   final int viewCount;
   final int likeCount;
+  final List<ExerciseRef> exerciseRefs;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final List<Exercise> exercises;
 
   Routine({
-    required this.id,
+    required this.routineId,
     required this.trainerId,
     required this.title,
-    required this.description,
+    String? description,
+    String? difficulty,
     this.viewCount = 0,
     this.likeCount = 0,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.exercises,
-  });
+    required this.exerciseRefs,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : this.description = description ?? '',
+        this.difficulty = difficulty ?? 'Beginner',
+        this.createdAt = createdAt ?? DateTime.now(),
+        this.updatedAt = updatedAt ?? DateTime.now();
 
-  Map<String, dynamic> toMap() {
+  Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'routineId': routineId,
       'trainerId': trainerId,
       'title': title,
       'description': description,
+      'difficulty': difficulty,
       'viewCount': viewCount,
       'likeCount': likeCount,
+      'exerciseRefs': exerciseRefs.map((ref) => ref.toJson()).toList(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
-      'exercises': exercises.map((e) => e.toMap()).toList(),
     };
   }
 
-  factory Routine.fromMap(Map<String, dynamic> map, String id) {
+  factory Routine.fromJson(Map<String, dynamic> json) {
+    final exerciseRefsJson = json['exerciseRefs'] as List<dynamic>?;
+    
+    final exerciseRefs = (exerciseRefsJson
+        ?.map((e) => ExerciseRef.fromJson(e as Map<String, dynamic>))
+        .toList() ?? [])
+      ..sort((a, b) => a.order.compareTo(b.order));
+    
     return Routine(
-      id: id,
-      trainerId: map['trainerId'],
-      title: map['title'],
-      description: map['description'],
-      viewCount: map['viewCount'] ?? 0,
-      likeCount: map['likeCount'] ?? 0,
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
-      exercises: (map['exercises'] as List)
-          .map((e) => Exercise.fromMap(e))
-          .toList(),
+      routineId: json['routineId'] as String,
+      trainerId: json['trainerId'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String?,
+      difficulty: json['difficulty'] as String?,
+      viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
+      likeCount: (json['likeCount'] as num?)?.toInt() ?? 0,
+      exerciseRefs: exerciseRefs,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'] as String)
+          : null,
+    );
+  }
+
+  Routine copyWith({
+    String? routineId,
+    String? trainerId,
+    String? title,
+    String? description,
+    String? difficulty,
+    int? viewCount,
+    int? likeCount,
+    List<ExerciseRef>? exerciseRefs,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Routine(
+      routineId: routineId ?? this.routineId,
+      trainerId: trainerId ?? this.trainerId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      difficulty: difficulty ?? this.difficulty,
+      viewCount: viewCount ?? this.viewCount,
+      likeCount: likeCount ?? this.likeCount,
+      exerciseRefs: exerciseRefs ?? this.exerciseRefs,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 }
-
-class Exercise {
-  final String name;
-  final int sets;
-  final String? videoUrl;  // Remote URL after upload
-  final String? videoPath; // Local path while recording
-  final int order;
-
-  Exercise({
-    required this.name,
-    required this.sets,
-    this.videoUrl,
-    this.videoPath,
-    required this.order,
-  });
-
-  Map<String, dynamic> toMap() {
-    return {
-      'name': name,
-      'sets': sets,
-      'videoUrl': videoUrl,
-      'order': order,
-    };
-  }
-
-  factory Exercise.fromMap(Map<String, dynamic> map) {
-    return Exercise(
-      name: map['name'],
-      sets: map['sets'],
-      videoUrl: map['videoUrl'],
-      order: map['order'],
-    );
-  }
-} 

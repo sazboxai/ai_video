@@ -39,12 +39,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final imagePath = await _profileService.pickImage(fromCamera: fromCamera);
       if (imagePath == null) return;
 
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not found')),
+        );
+        return;
+      }
+
       setState(() => _isLoading = true);
 
-      final userId = _authService.currentUser!.uid;
       final downloadUrl = await _profileService.uploadProfilePicture(
         imagePath,
-        userId,
+        user.uid,
       );
 
       setState(() {
@@ -58,15 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       }
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error updating profile picture: $e')),
+      );
       setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 
@@ -74,8 +76,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       setState(() => _isLoading = true);
 
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not found')),
+        );
+        return;
+      }
+
       await _profileService.updateProfile(
-        _authService.currentUser!.uid,
+        user.uid,
         bio: _bioController.text,
         name: _nameController.text,
       );
@@ -195,4 +205,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.dispose();
     super.dispose();
   }
-} 
+}

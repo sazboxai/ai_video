@@ -129,6 +129,7 @@ lib/firebase_options.dart
 .env
 .env.local
 *.env.json
+.env.template
 
 # Log files
 *.log

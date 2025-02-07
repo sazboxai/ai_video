@@ -1,111 +1,198 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
+import '../models/exercise.dart';
+import '../models/exercise_ref.dart';
 import '../services/routine_service.dart';
-import '../widgets/exercise_card.dart';
+import '../services/exercise_service.dart';
 import '../widgets/add_exercise_sheet.dart';
+import '../widgets/exercise_card.dart';
 
 class EditRoutineScreen extends StatefulWidget {
-  final Routine routine;
+  final String routineId;
 
   const EditRoutineScreen({
-    super.key,
-    required this.routine,
-  });
+    Key? key,
+    required this.routineId,
+  }) : super(key: key);
 
   @override
   State<EditRoutineScreen> createState() => _EditRoutineScreenState();
 }
 
 class _EditRoutineScreenState extends State<EditRoutineScreen> {
-  final _formKey = GlobalKey<FormState>();
-  late TextEditingController _titleController;
-  late TextEditingController _descriptionController;
-  late List<Exercise> _exercises;
-  bool _isLoading = false;
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _routineService = RoutineService();
+  final _exerciseService = ExerciseService();
+
+  Routine? _routine;
+  Map<String, Exercise> _exercises = {}; // Map exerciseId to Exercise
+  String _difficulty = 'Beginner';
+  bool _isLoading = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.routine.title);
-    _descriptionController = TextEditingController(text: widget.routine.description);
-    _exercises = List.from(widget.routine.exercises);
+    _loadRoutine();
   }
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _addExercise() async {
-    final exercise = await showModalBottomSheet<Exercise>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => const AddExerciseSheet(),
-    );
-
-    if (exercise != null) {
-      setState(() {
-        _exercises.add(exercise);
-      });
-    }
-  }
-
-  Future<void> _saveRoutine() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_exercises.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add at least one exercise'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
+  Future<void> _loadRoutine() async {
     setState(() => _isLoading = true);
-
     try {
-      final updatedRoutine = Routine(
-        id: widget.routine.id,
-        trainerId: widget.routine.trainerId,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        exercises: _exercises,
-        viewCount: widget.routine.viewCount,
-        likeCount: widget.routine.likeCount,
-        createdAt: widget.routine.createdAt,
-        updatedAt: DateTime.now(),
-      );
+      final routine = await _routineService.getRoutineById(widget.routineId);
+      if (routine == null) throw 'Routine not found';
 
-      await _routineService.updateRoutine(updatedRoutine);
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      // Load exercises
+      final exercises = await _routineService.getRoutineExercises(routine);
+      final exerciseMap = {for (var e in exercises) e.exerciseId: e};
+
+      setState(() {
+        _routine = routine;
+        _exercises = exerciseMap;
+        _difficulty = routine.difficulty;
+        _titleController.text = routine.title;
+        _descriptionController.text = routine.description;
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Error loading routine: $e')),
       );
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _showAddExerciseSheet() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => AddExerciseSheet(
+        routineId: widget.routineId,
+        onExerciseAdded: (exercise) async {
+          // Reload the entire routine to get updated exerciseRefs
+          await _loadRoutine();
+        },
+      ),
+    );
+  }
+
+  Future<void> _saveRoutine() async {
+    if (_routine == null) return;
+    
+    setState(() => _isSaving = true);
+    try {
+      final updatedRoutine = _routine!.copyWith(
+        title: _titleController.text,
+        description: _descriptionController.text,
+        difficulty: _difficulty,
+      );
+
+      await _routineService.updateRoutine(updatedRoutine);
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving routine: $e')),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _deleteExercise(Exercise exercise) async {
+    try {
+      await _routineService.removeExerciseFromRoutine(
+        widget.routineId,
+        exercise.exerciseId,
+      );
+
+      setState(() {
+        _exercises.remove(exercise.exerciseId);
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error removing exercise: $e')),
+      );
+    }
+  }
+
+  Future<void> _editExercise(Exercise exercise) async {
+    // Show the AddExerciseSheet in edit mode
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => AddExerciseSheet(
+        routineId: widget.routineId,
+        exercise: exercise,
+        onExerciseAdded: (updatedExercise) async {
+          await _loadRoutine(); // Reload to get updated exercise
+        },
+      ),
+    );
+  }
+
+  Future<void> _reorderExercises(int oldIndex, int newIndex) async {
+    if (_routine == null) return;
+    
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+
+    try {
+      // Get ordered exercises based on routine's exerciseRefs
+      final orderedRefs = List<ExerciseRef>.from(_routine!.exerciseRefs);
+      
+      // Update local state first for responsive UI
+      setState(() {
+        final ref = orderedRefs.removeAt(oldIndex);
+        orderedRefs.insert(newIndex, ref);
+        
+        // Update the order field for each ref
+        for (int i = 0; i < orderedRefs.length; i++) {
+          orderedRefs[i] = ExerciseRef(
+            exerciseId: orderedRefs[i].exerciseId,
+            order: i,
+            sets: orderedRefs[i].sets,
+          );
+        }
+        
+        // Update routine with new refs
+        _routine = _routine!.copyWith(exerciseRefs: orderedRefs);
+      });
+
+      // Update routine with new order in Firestore
+      await _routineService.reorderExercises(widget.routineId, orderedRefs);
+    } catch (e) {
+      // Reload routine on error to ensure UI matches server state
+      await _loadRoutine();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error reordering exercises: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Get ordered exercises based on routine's exerciseRefs
+    final orderedExercises = _routine?.exerciseRefs
+        .map((ref) => _exercises[ref.exerciseId])
+        .whereType<Exercise>()
+        .toList() ?? [];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit Routine'),
         actions: [
-          if (_isLoading)
+          if (_isSaving)
             const Center(
               child: Padding(
-                padding: EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16),
                 child: SizedBox(
                   height: 20,
                   width: 20,
@@ -120,90 +207,81 @@ class _EditRoutineScreenState extends State<EditRoutineScreen> {
             ),
         ],
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'Title',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a description';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Exercises',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _exercises.length,
-              itemBuilder: (context, index) {
-                final exercise = _exercises[index];
-                return ExerciseCard(
-                  key: ValueKey(exercise.hashCode),
-                  exercise: exercise,
-                  onDelete: () {
-                    setState(() {
-                      _exercises.removeAt(index);
-                    });
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _difficulty,
+                  decoration: const InputDecoration(
+                    labelText: 'Difficulty',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: ['Beginner', 'Intermediate', 'Advanced']
+                      .map((d) => DropdownMenuItem(value: d, child: Text(d)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _difficulty = value);
+                    }
                   },
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ReorderableListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: orderedExercises.length,
+              onReorder: _reorderExercises,
+              itemBuilder: (context, index) {
+                final exercise = orderedExercises[index];
+                final ref = _routine!.exerciseRefs
+                    .firstWhere((ref) => ref.exerciseId == exercise.exerciseId);
+                
+                return ExerciseCard(
+                  key: ValueKey(exercise.exerciseId),
+                  exercise: exercise,
+                  sets: ref.sets,
+                  index: index,
+                  onDelete: () => _deleteExercise(exercise),
+                  onEdit: () => _editExercise(exercise),
                 );
               },
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  final item = _exercises.removeAt(oldIndex);
-                  _exercises.insert(newIndex, item);
-                  
-                  // Update order numbers
-                  for (var i = 0; i < _exercises.length; i++) {
-                    final exercise = _exercises[i];
-                    _exercises[i] = Exercise(
-                      name: exercise.name,
-                      sets: exercise.sets,
-                      videoUrl: exercise.videoUrl,
-                      videoPath: exercise.videoPath,
-                      order: i,
-                    );
-                  }
-                });
-              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addExercise,
+        onPressed: _showAddExerciseSheet,
         child: const Icon(Icons.add),
       ),
     );
   }
-} 
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+}

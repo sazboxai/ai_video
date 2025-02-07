@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../models/routine.dart';
+import '../models/exercise.dart';
+import '../services/exercise_service.dart';
 
 class RoutinePlayerScreen extends StatefulWidget {
   final Routine routine;
@@ -15,8 +17,10 @@ class RoutinePlayerScreen extends StatefulWidget {
 }
 
 class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
+  final _exerciseService = ExerciseService();
   late PageController _pageController;
   List<VideoPlayerController> _controllers = [];
+  List<Exercise> _exercises = [];
   int _currentIndex = 0;
   bool _isLoading = true;
   String? _error;
@@ -25,212 +29,197 @@ class _RoutinePlayerScreenState extends State<RoutinePlayerScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    _initializeControllers();
+    _loadExercisesAndInitialize();
   }
 
-  Future<void> _initializeControllers() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+  Future<void> _loadExercisesAndInitialize() async {
     try {
-      final exercisesWithVideos = widget.routine.exercises
-          .where((e) => e.videoUrl != null)
-          .toList();
-
-      for (var exercise in exercisesWithVideos) {
-        try {
-          final controller = VideoPlayerController.networkUrl(
-            Uri.parse(exercise.videoUrl!),
-            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-            httpHeaders: {
-              'Range': 'bytes=0-',
-            },
-          );
-
-          await controller.initialize();
-          controller.setLooping(true);
-          _controllers.add(controller);
-        } catch (e) {
-          print('Error initializing video for ${exercise.name}: $e');
-          // Try reinitializing with different options
-          try {
-            final retryController = VideoPlayerController.networkUrl(
-              Uri.parse(exercise.videoUrl!),
-              videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-            );
-            await retryController.initialize();
-            retryController.setLooping(true);
-            _controllers.add(retryController);
-          } catch (retryError) {
-            print('Retry failed for ${exercise.name}: $retryError');
+      // Load exercises first
+      _exercises = await Future.wait(
+        widget.routine.exerciseRefs.map((ref) async {
+          final exercise = await _exerciseService.getExerciseById(ref.exerciseId);
+          if (exercise == null) {
+            throw 'Exercise not found: ${ref.exerciseId}';
           }
-        }
-      }
+          return exercise;
+        }),
+      );
 
+      // Then initialize controllers for exercises with videos
+      _controllers = await Future.wait(
+        _exercises
+            .where((exercise) => exercise.videoUrl != null)
+            .map((exercise) async {
+          final controller = VideoPlayerController.network(exercise.videoUrl!);
+          await controller.initialize();
+          controller.setLooping(true); // Loop videos
+          return controller;
+        }),
+      );
+
+      // Start playing the first video
       if (_controllers.isNotEmpty) {
         _controllers.first.play();
       }
+
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
-        _error = 'Error loading videos: $e';
-      });
-    } finally {
-      setState(() {
         _isLoading = false;
+        _error = 'Failed to load routine: $e';
       });
     }
   }
 
   @override
   void dispose() {
-    for (var controller in _controllers) {
+    _pageController.dispose();
+    for (final controller in _controllers) {
       controller.dispose();
     }
-    _pageController.dispose();
     super.dispose();
   }
 
   void _onPageChanged(int index) {
-    if (_currentIndex < _controllers.length) {
-      _controllers[_currentIndex].pause();
-    }
-    if (index < _controllers.length) {
-      _controllers[index].play();
-    }
-    setState(() => _currentIndex = index);
+    setState(() {
+      // Pause the previous video
+      if (_currentIndex < _controllers.length) {
+        _controllers[_currentIndex].pause();
+      }
+      _currentIndex = index;
+      // Play the new video
+      if (_currentIndex < _controllers.length) {
+        _controllers[_currentIndex].play();
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: Colors.white),
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  _error!,
-                  style: const TextStyle(color: Colors.white),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _initializeControllers,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if (_controllers.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Text(
-            'No videos available in this routine',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          PageView.builder(
-            scrollDirection: Axis.vertical,
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: _controllers.length,
-            itemBuilder: (context, index) {
-              return _VideoPlayerItem(
-                controller: _controllers[index],
-                exercise: widget.routine.exercises
-                    .where((e) => e.videoUrl != null)
-                    .elementAt(index),
-              );
-            },
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(
+          widget.routine.title,
+          style: const TextStyle(
+            color: Colors.white,
+            shadows: [Shadow(blurRadius: 4)],
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Text(
-                    '${_currentIndex + 1}/${_controllers.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(child: Text(_error!))
+              : _exercises.isEmpty
+                  ? const Center(child: Text('No exercises in this routine'))
+                  : PageView.builder(
+                      scrollDirection: Axis.vertical,
+                      controller: _pageController,
+                      onPageChanged: _onPageChanged,
+                      itemCount: _exercises.length,
+                      itemBuilder: (context, index) {
+                        final exercise = _exercises[index];
+                        final ref = widget.routine.exerciseRefs[index];
+                        
+                        return _ExerciseVideoPage(
+                          exercise: exercise,
+                          controller: exercise.videoUrl != null
+                              ? _controllers[_controllers.indexWhere(
+                                  (c) => c.dataSource == exercise.videoUrl)]
+                              : null,
+                          sets: ref.sets,
+                          currentIndex: index,
+                          totalExercises: _exercises.length,
+                        );
+                      },
+                    ),
     );
   }
 }
 
-class _VideoPlayerItem extends StatelessWidget {
-  final VideoPlayerController controller;
+class _ExerciseVideoPage extends StatelessWidget {
   final Exercise exercise;
+  final VideoPlayerController? controller;
+  final int sets;
+  final int currentIndex;
+  final int totalExercises;
 
-  const _VideoPlayerItem({
-    required this.controller,
+  const _ExerciseVideoPage({
     required this.exercise,
+    required this.controller,
+    required this.sets,
+    required this.currentIndex,
+    required this.totalExercises,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        if (controller.value.isPlaying) {
-          controller.pause();
-        } else {
-          controller.play();
-        }
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          controller.value.isInitialized
-              ? AspectRatio(
-                  aspectRatio: controller.value.aspectRatio,
-                  child: VideoPlayer(controller),
-                )
-              : const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-          Positioned(
-            left: 16,
-            bottom: 80,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Video or placeholder
+        if (controller != null)
+          GestureDetector(
+            onTap: () {
+              if (controller!.value.isPlaying) {
+                controller!.pause();
+              } else {
+                controller!.play();
+              }
+            },
+            child: VideoPlayer(controller!),
+          )
+        else
+          Container(
+            color: Colors.black,
+            child: Center(
+              child: Text(
+                'No video available for\n${exercise.name}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ),
+
+        // Play/Pause overlay
+        if (controller != null && !controller!.value.isPlaying)
+          Center(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.play_arrow,
+                size: 50,
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+        // Exercise info overlay
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.7),
+                ],
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   exercise.name,
@@ -238,31 +227,37 @@ class _VideoPlayerItem extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    shadows: [Shadow(blurRadius: 4)],
                   ),
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+                Text(
+                  '$sets sets',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    shadows: [Shadow(blurRadius: 4)],
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    '${exercise.sets} sets',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                LinearProgressIndicator(
+                  value: (currentIndex + 1) / totalExercises,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Exercise ${currentIndex + 1} of $totalExercises',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    shadows: const [Shadow(blurRadius: 4)],
                   ),
                 ),
               ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-} 
+}

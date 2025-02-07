@@ -14,13 +14,23 @@ class MyRoutinesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = _authService.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Please sign in'));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Routines'),
-        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _navigateToCreateRoutine(context),
+          ),
+        ],
       ),
       body: StreamBuilder<List<Routine>>(
-        stream: _routineService.getTrainerRoutines(_authService.currentUser!.uid),
+        stream: _routineService.getTrainerRoutines(user.uid),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
@@ -56,7 +66,7 @@ class MyRoutinesScreen extends StatelessWidget {
                 routine: routine,
                 onDelete: () async {
                   try {
-                    await _routineService.deleteRoutine(routine.id);
+                    await _routineService.deleteRoutine(routine.routineId);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Routine deleted')),
                     );
@@ -73,10 +83,6 @@ class MyRoutinesScreen extends StatelessWidget {
             },
           );
         },
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToCreateRoutine(context),
-        child: const Icon(Icons.add),
       ),
     );
   }
@@ -142,7 +148,7 @@ class RoutineCard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => EditRoutineScreen(
-                        routine: routine,
+                        routineId: routine.routineId,
                       ),
                     ),
                   );
@@ -175,9 +181,13 @@ class RoutineCard extends StatelessWidget {
                     Text('${routine.likeCount}'),
                   ],
                 ),
+                const SizedBox(width: 8),
                 Text(
-                  '${routine.exercises.length} exercises',
-                  style: Theme.of(context).textTheme.bodySmall,
+                  '${routine.exerciseRefs.length} exercises',
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -215,4 +225,4 @@ class RoutineCard extends StatelessWidget {
       onDelete();
     }
   }
-} 
+}

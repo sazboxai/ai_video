@@ -80,4 +80,17 @@ class AuthService {
       return null;
     }
   }
+
+  Future<void> checkAuthState() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      // Get fresh token
+      final token = await user.getIdToken(true);
+      print('[DEBUG] Auth check - User ID: ${user.uid}');
+      print('[DEBUG] Auth check - Token available: ${token != null}');
+      print('[DEBUG] Auth check - Email verified: ${user.emailVerified}');
+    } else {
+      print('[DEBUG] Auth check - No user logged in');
+    }
+  }
 } 

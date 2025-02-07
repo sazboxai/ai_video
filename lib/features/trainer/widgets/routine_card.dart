@@ -88,7 +88,7 @@ class RoutineCard extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  '${routine.exercises.length} exercises',
+                  '${routine.exerciseRefs.length} exercises',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],

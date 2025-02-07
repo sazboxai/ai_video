@@ -17,6 +17,19 @@ service cloud.firestore {
       }
     }
     
+    // Exercises Collection
+    match /exercises/{exerciseId} {
+      allow read: if request.auth != null;
+      
+      // Only trainers can create exercises
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.trainerId;
+      
+      // Only the exercise owner can update/delete
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.trainerId;
+    }
+    
     // Routines
     match /routines/{routineId} {
       allow read: if request.auth != null;

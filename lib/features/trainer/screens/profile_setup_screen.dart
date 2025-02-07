@@ -34,14 +34,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-
     try {
+      final user = _authService.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not found')),
+        );
+        return;
+      }
+
+      setState(() => _isLoading = true);
+
       String? imageUrl;
       if (_imageFile != null) {
         // Upload image to Firebase Storage with timestamp
         final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final fileName = '${_authService.currentUser!.uid}_$timestamp.jpg';
+        final fileName = '${user.uid}_$timestamp.jpg';
         
         // Use your specific bucket - matching the rules structure
         final storageRef = FirebaseStorage.instance
@@ -54,7 +62,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           final metadata = SettableMetadata(
             contentType: 'image/jpeg',
             customMetadata: {
-              'userId': _authService.currentUser!.uid,
+              'userId': user.uid,
               'uploadTime': DateTime.now().toIso8601String(),
             },
           );
@@ -72,7 +80,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
       // Create profile after successful image upload
       final profile = TrainerProfile(
-        uid: _authService.currentUser!.uid,
+        uid: user.uid,
         username: _usernameController.text,
         photoUrl: imageUrl,
         bio: _bioController.text,
@@ -86,18 +94,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         Navigator.of(context).pushReplacementNamed('/trainer/home');
       }
     } catch (e) {
-      print('Error in profile setup: $e'); // Debug print
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
+        SnackBar(content: Text('Error creating profile: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
   }
 
