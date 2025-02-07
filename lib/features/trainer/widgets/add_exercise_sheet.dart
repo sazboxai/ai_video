@@ -6,6 +6,7 @@ import '../services/exercise_service.dart';
 import '../services/routine_service.dart';
 import '../services/video_service.dart';
 import '../services/auth_service.dart';
+import '../screens/video_editor_screen.dart';
 
 class AddExerciseSheet extends StatefulWidget {
   final String routineId;
@@ -55,20 +56,68 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     }
   }
 
-  Future<void> _pickVideo(ImageSource source) async {
+  Future<void> _pickVideo() async {
     try {
-      final picker = ImagePicker();
-      final video = await picker.pickVideo(source: source);
+      final ImagePicker picker = ImagePicker();
+      
+      // Show dialog to choose between camera and gallery
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: const Text('Choose video source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Record Video'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+      );
+      
+      if (source == null) return;
+      
+      final XFile? video = await picker.pickVideo(source: source);
+      
       if (video != null) {
-        setState(() {
-          _videoPath = video.path;
-          _errorMessage = null;
-        });
+        // Show video editor screen
+        if (!mounted) return;
+        
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => VideoEditorScreen(
+              videoPath: video.path,
+              onVideoEdited: (String editedPath) {
+                setState(() {
+                  _videoPath = editedPath;
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+
+        if (result == null) {
+          // User cancelled editing
+          setState(() {
+            _videoPath = video.path;
+          });
+        }
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Error picking video: $e');
+      print('Error picking video: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking video: $e')),
+        SnackBar(content: Text('Failed to pick video: $e')),
       );
     }
   }
@@ -241,14 +290,14 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
                 ElevatedButton.icon(
                   onPressed: _isUploading
                       ? null
-                      : () => _pickVideo(ImageSource.camera),
+                      : _pickVideo,
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text('Camera'),
+                  label: const Text('Record Video'),
                 ),
                 ElevatedButton.icon(
                   onPressed: _isUploading
                       ? null
-                      : () => _pickVideo(ImageSource.gallery),
+                      : _pickVideo,
                   icon: const Icon(Icons.photo_library),
                   label: const Text('Gallery'),
                 ),

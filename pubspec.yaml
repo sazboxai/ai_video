@@ -43,6 +43,8 @@ dependencies:
   firebase_storage: ^12.4.2
   video_thumbnail: ^0.5.3
   path_provider: ^2.1.2
+  imgly_editor: ^1.43.0
+  flutter_dotenv: ^5.1.0
 
 dev_dependencies:
   flutter_test:
@@ -65,6 +67,12 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - .env
+    - assets/
+    - assets/editor_assets/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -91,11 +99,6 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-
-  # Remove or comment out the assets section since we're using Icons instead
-  # assets:
-  #   - assets/icons/trainer.png
-  #   - assets/icons/user.png
 
 # Update this
 ios_bundle_identifier: com.yourname.fitnessaitrainer

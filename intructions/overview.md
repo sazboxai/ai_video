@@ -86,3 +86,26 @@ This platform is built to **empower personal trainers** by providing them with t
 Fitness AI Trainer is designed to **revolutionize the way trainers and users interact with fitness content**. By combining **structured workouts with TikTok-style engagement**, the app creates a **fun, interactive, and efficient** way for people to stay active and motivated. Trainers get a **powerful platform** to grow their audience, while users receive **engaging, guided fitness experiences** tailored to their needs.
 
 🚀 **This app is the future of digital fitness coaching and social-driven workout engagement!**
+
+
+Enhancing Video Upload Experience with Editing Tools
+Now, let's integrate the SDK you provided to improve the video upload process. Instead of directly uploading a selected video, we will introduce video editing tools at the preview stage, allowing users to make adjustments before finalizing their upload.
+
+Improvements:
+When users select a video, they will be taken to a preview screen before uploading.
+Enable video editing tools at this stage, allowing users to:
+Trim the video to adjust its duration.
+Crop to focus on key workout details.
+Apply basic enhancements like brightness or contrast adjustments (if supported by the SDK).
+Apply filters to enhance video appearance.
+Add overlays for branding or special effects.
+Use a brush tool to draw on the video.
+Add stickers to make the content more engaging.
+Insert text with various fonts to provide workout instructions or annotations.
+Once the user finalizes edits, they can confirm and upload the video.
+SDK Key Integration & Security
+I will provide the SDK key, but I need guidance on where to place it in the project.
+Ensure that the SDK key remains hidden, following best practices such as:
+Storing it in environment variables instead of hardcoding.
+Using secure storage solutions to prevent exposure in version control.
+This update will give users more control over their content, ensuring their exercise videos are engaging, visually appealing, and well-optimized before being shared, all while keeping sensitive credentials secure.
