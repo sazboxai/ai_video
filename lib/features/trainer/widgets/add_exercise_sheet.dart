@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/exercise.dart';
@@ -96,14 +97,37 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     });
 
     try {
-      // Get current trainer ID
-      final trainerId = _authService.currentUser?.uid;
-      if (trainerId == null) {
+      // Check authentication state
+      await _authService.checkAuthState();
+      
+      // Get current user
+      final user = _authService.currentUser;
+      if (user == null) {
         throw 'User not authenticated';
+      }
+
+      final trainerId = user.uid;
+
+      // Validate video if provided
+      if (_videoPath != null) {
+        print('[DEBUG] Validating video at path: $_videoPath');
+        final videoFile = File(_videoPath!);
+        
+        if (!await videoFile.exists()) {
+          throw 'Selected video file not found';
+        }
+
+        final videoSize = await videoFile.length();
+        print('[DEBUG] Video size: ${(videoSize / 1024 / 1024).toStringAsFixed(2)}MB');
+        
+        if (videoSize > 50 * 1024 * 1024) {
+          throw 'Video size must be less than 50MB';
+        }
       }
 
       Exercise exercise;
       if (_isEditing) {
+        print('[DEBUG] Updating existing exercise: ${widget.exercise!.exerciseId}');
         // Update existing exercise
         exercise = await _exerciseService.updateExercise(
           exerciseId: widget.exercise!.exerciseId,
@@ -119,6 +143,7 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
           sets,
         );
       } else {
+        print('[DEBUG] Creating new exercise');
         // Create new exercise
         exercise = await _exerciseService.createExercise(
           trainerId: trainerId,
@@ -147,10 +172,24 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
         Navigator.pop(context);
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Error saving exercise: $e');
+      print('[ERROR] Error in _saveExercise: $e');
+      final errorMessage = e.toString();
+      String userMessage;
+      
+      if (errorMessage.contains('storage/unauthorized')) {
+        userMessage = 'Please sign out and sign in again, then try uploading the video';
+      } else if (errorMessage.contains('Failed to upload video')) {
+        userMessage = 'Error uploading video. Please try again with a different video or check your internet connection.';
+      } else if (errorMessage.contains('User not authenticated')) {
+        userMessage = 'You need to be logged in to upload videos. Please sign in again.';
+      } else {
+        userMessage = 'Error saving exercise: $e';
+      }
+
+      setState(() => _errorMessage = userMessage);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving exercise: $e')),
+          SnackBar(content: Text(userMessage)),
         );
       }
     } finally {
