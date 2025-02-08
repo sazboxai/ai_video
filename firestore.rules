@@ -30,6 +30,29 @@ service cloud.firestore {
         && request.auth.uid == resource.data.trainerId;
     }
     
+    // Locations Collection
+    match /locations/{locationId} {
+      allow read: if request.auth != null;
+      
+      // Only trainers can create locations
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.trainerId;
+      
+      // Only the location owner can update/delete
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.trainerId;
+        
+      // Validate location data
+      function isValidLocation() {
+        let location = request.resource.data;
+        return location.name.size() > 0 
+          && location.name.size() <= 100
+          && (!('equipment' in location) || location.equipment is list)
+          && (!('photoUrls' in location) || location.photoUrls is list)
+          && (!('routinePrograms' in location) || location.routinePrograms is list);
+      }
+    }
+    
     // Routines
     match /routines/{routineId} {
       allow read: if request.auth != null;
