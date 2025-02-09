@@ -25,6 +25,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   final _locationService = LocationService();
   final _pageController = PageController();
   final _imagePicker = ImagePicker();
+  final _equipmentController = TextEditingController();
   late Location _location;
 
   @override
@@ -36,6 +37,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
   @override
   void dispose() {
     _pageController.dispose();
+    _equipmentController.dispose();
     super.dispose();
   }
 
@@ -193,6 +195,72 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     }
   }
 
+  Future<void> _addEquipment() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Equipment'),
+        content: TextField(
+          controller: _equipmentController,
+          decoration: const InputDecoration(
+            hintText: 'Enter equipment name',
+            labelText: 'Equipment',
+          ),
+          textCapitalization: TextCapitalization.words,
+          autofocus: true,
+          onSubmitted: (value) {
+            Navigator.pop(context, value);
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final value = _equipmentController.text.trim();
+              if (value.isNotEmpty) {
+                Navigator.pop(context, value);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      final updatedEquipment = List<String>.from(_location.equipment)..add(result);
+      try {
+        await _locationService.updateLocation(
+          locationId: _location.locationId,
+          name: _location.name,
+          equipment: updatedEquipment,
+          photoUrls: _location.photoUrls,
+          routinePrograms: _location.routinePrograms,
+        );
+
+        final updatedLocation = await _locationService.getLocationById(_location.locationId);
+        if (updatedLocation != null && mounted) {
+          setState(() {
+            _location = updatedLocation;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Equipment added successfully')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to add equipment: $e')),
+          );
+        }
+      }
+    }
+    _equipmentController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -200,10 +268,14 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
         slivers: [
           // Title Banner
           SliverAppBar(
-            expandedHeight: 200.0,
+            expandedHeight: 100.0,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              title: Text(_location.name),
+              title: Text(
+                _location.name,
+                style: const TextStyle(fontSize: 18.0),
+              ),
+              titlePadding: const EdgeInsets.only(bottom: 16.0),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -314,6 +386,55 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                           ),
                         ),
                       ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
+          // Equipment Section
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Available Equipment',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: _addEquipment,
+                        tooltip: 'Add Equipment',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_location.equipment.isEmpty)
+                    const Text(
+                      'No equipment added yet',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _location.equipment.map((equipment) {
+                        return Chip(
+                          label: Text(equipment),
+                          backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                          labelStyle: TextStyle(
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        );
+                      }).toList(),
                     ),
                 ],
               ),
