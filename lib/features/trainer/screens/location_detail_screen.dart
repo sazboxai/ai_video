@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/location.dart';
 import '../services/location_service.dart';
 import 'edit_routine_program_screen.dart';
@@ -261,6 +262,88 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     _equipmentController.clear();
   }
 
+  Future<void> _scanEquipment() async {
+    try {
+      if (_location.photoUrls.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please add photos before scanning for equipment'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Scanning photos for equipment...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      try {
+        // Call the Cloud Function
+        final result = await FirebaseFunctions.instance
+            .httpsCallable('detectGymEquipment')
+            .call({'locationId': _location.locationId});
+
+        // Dismiss loading dialog
+        if (mounted) Navigator.pop(context);
+
+        // Show success message
+        if (mounted) {
+          final detectedEquipment = (result.data['detectedEquipment'] as List).cast<String>();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Detected ${detectedEquipment.length} pieces of equipment'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Refresh location data to show new equipment
+          final updatedLocation = await _locationService.getLocationById(_location.locationId);
+          if (updatedLocation != null && mounted) {
+            setState(() {
+              _location = updatedLocation;
+            });
+          }
+        }
+      } catch (e) {
+        // Dismiss loading dialog if it's showing
+        if (mounted) Navigator.pop(context);
+        
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error scanning equipment: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -406,10 +489,19 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                         'Available Equipment',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: _addEquipment,
-                        tooltip: 'Add Equipment',
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.camera_alt),
+                            onPressed: _scanEquipment,
+                            tooltip: 'Scan Photos for Equipment',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: _addEquipment,
+                            tooltip: 'Add Equipment',
+                          ),
+                        ],
                       ),
                     ],
                   ),
