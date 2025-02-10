@@ -13,16 +13,32 @@ class LocationService {
         .collection('locations')
         .where('trainerId', isEqualTo: trainerId)
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => Location.fromJson(doc.data()))
-            .toList());
+        .map((snapshot) {
+          for (var doc in snapshot.docs) {
+            print('Raw location data for ${doc.id}:');
+            print(doc.data());
+          }
+          return snapshot.docs
+              .map((doc) {
+                final data = doc.data();
+                // Ensure timestamps are properly set
+                if (data['createdAt'] == null) {
+                  data['createdAt'] = Timestamp.now();
+                }
+                if (data['updatedAt'] == null) {
+                  data['updatedAt'] = Timestamp.now();
+                }
+                return Location.fromJson({...data, 'locationId': doc.id});
+              })
+              .toList();
+        });
   }
 
   // Get a single location by ID
   Future<Location?> getLocationById(String locationId) async {
     final doc = await _firestore.collection('locations').doc(locationId).get();
     if (doc.exists) {
-      return Location.fromJson(doc.data()!);
+      return Location.fromJson({...doc.data()!, 'locationId': doc.id});
     }
     return null;
   }
@@ -33,19 +49,25 @@ class LocationService {
     required String name,
     List<String> equipment = const [],
     List<String> photoUrls = const [],
+    List<String> routineProgramIds = const [],
   }) async {
     final docRef = _firestore.collection('locations').doc();
-    final location = Location(
-      locationId: docRef.id,
-      trainerId: trainerId,
-      name: name,
-      equipment: equipment,
-      photoUrls: photoUrls,
-      routinePrograms: const [],
-    );
+    final now = Timestamp.now();
+    
+    final data = {
+      'locationId': docRef.id,
+      'trainerId': trainerId,
+      'name': name,
+      'equipment': equipment,
+      'photoUrls': photoUrls,
+      'routineProgramIds': routineProgramIds,
+      'createdAt': now,
+      'updatedAt': now,
+    };
 
-    await docRef.set(location.toJson());
-    return location;
+    await docRef.set(data);
+    
+    return Location.fromJson(data);
   }
 
   // Update an existing location
@@ -54,13 +76,14 @@ class LocationService {
     required String name,
     required List<String> equipment,
     required List<String> photoUrls,
-    required List<RoutineProgram> routinePrograms,
+    required List<String> routineProgramIds,
   }) async {
     await _firestore.collection('locations').doc(locationId).update({
       'name': name,
       'equipment': equipment,
       'photoUrls': photoUrls,
-      'routinePrograms': routinePrograms.map((p) => p.toJson()).toList(),
+      'routineProgramIds': routineProgramIds,
+      'updatedAt': Timestamp.now(),
     });
   }
 
@@ -121,56 +144,21 @@ class LocationService {
   // Add a routine program to a location
   Future<void> addRoutineProgram(
     String locationId,
-    String title,
-    String markdownContent,
+    String programId,
   ) async {
-    final program = RoutineProgram(
-      programId: _firestore.collection('locations').doc().id,
-      title: title,
-      markdownContent: markdownContent,
-    );
-
     await _firestore.collection('locations').doc(locationId).update({
-      'routinePrograms': FieldValue.arrayUnion([program.toJson()]),
+      'routineProgramIds': FieldValue.arrayUnion([programId]),
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }
 
-  // Update a routine program
-  Future<void> updateRoutineProgram(
-    String locationId,
-    RoutineProgram program,
-  ) async {
-    final location = await getLocationById(locationId);
-    if (location == null) return;
-
-    final updatedPrograms = location.routinePrograms.map((p) {
-      if (p.programId == program.programId) {
-        return program;
-      }
-      return p;
-    }).toList();
-
-    await _firestore.collection('locations').doc(locationId).update({
-      'routinePrograms': updatedPrograms.map((p) => p.toJson()).toList(),
-      'updatedAt': DateTime.now().toIso8601String(),
-    });
-  }
-
-  // Delete a routine program
-  Future<void> deleteRoutineProgram(
+  // Remove a routine program from a location
+  Future<void> removeRoutineProgram(
     String locationId,
     String programId,
   ) async {
-    final location = await getLocationById(locationId);
-    if (location == null) return;
-
-    final updatedPrograms = location.routinePrograms
-        .where((p) => p.programId != programId)
-        .toList();
-
     await _firestore.collection('locations').doc(locationId).update({
-      'routinePrograms': updatedPrograms.map((p) => p.toJson()).toList(),
+      'routineProgramIds': FieldValue.arrayRemove([programId]),
       'updatedAt': DateTime.now().toIso8601String(),
     });
   }

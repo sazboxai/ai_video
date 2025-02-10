@@ -216,7 +216,7 @@ class _EditLocationScreenState extends State<EditLocationScreen> {
           name: _nameController.text,
           equipment: _selectedEquipment,
           photoUrls: _photoUrls,
-          routinePrograms: widget.location!.routinePrograms,
+          routineProgramIds: widget.location!.routineProgramIds,
         );
       }
       if (mounted) {

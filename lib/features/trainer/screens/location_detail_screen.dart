@@ -4,7 +4,9 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/location.dart';
+import '../models/routine_program.dart' show RoutineProgram;
 import '../services/location_service.dart';
+import '../services/routine_program_service.dart';
 import 'edit_routine_program_screen.dart';
 import 'edit_location_screen.dart';
 import 'photo_viewer_screen.dart';
@@ -24,15 +26,27 @@ class LocationDetailScreen extends StatefulWidget {
 
 class _LocationDetailScreenState extends State<LocationDetailScreen> {
   final _locationService = LocationService();
+  final _routineProgramService = RoutineProgramService();
   final _pageController = PageController();
   final _imagePicker = ImagePicker();
   final _equipmentController = TextEditingController();
   late Location _location;
+  List<RoutineProgram> _routinePrograms = [];
 
   @override
   void initState() {
     super.initState();
     _location = widget.location;
+    _loadRoutinePrograms();
+  }
+
+  Future<void> _loadRoutinePrograms() async {
+    final programs = await _routineProgramService.getRoutineProgramsForLocation(_location.locationId);
+    if (mounted) {
+      setState(() {
+        _routinePrograms = programs;
+      });
+    }
   }
 
   @override
@@ -101,7 +115,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
         builder: (context, scrollController) => Column(
           children: [
             AppBar(
-              title: Text(program.title),
+              title: Text(program.name),
               centerTitle: true,
               leading: IconButton(
                 icon: const Icon(Icons.close),
@@ -118,11 +132,58 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
               ],
             ),
             Expanded(
-              child: Markdown(
-                data: program.markdownContent,
-                selectable: true,
+              child: SingleChildScrollView(
                 controller: scrollController,
                 padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      program.description,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (program.equipment.isNotEmpty) ...[
+                      const Text(
+                        'Required Equipment:',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: program.equipment.map((equipment) {
+                          return Chip(
+                            label: Text(equipment),
+                            backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                            labelStyle: TextStyle(
+                              color: Theme.of(context).primaryColor,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    const Text(
+                      'Program Outline:',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    MarkdownBody(
+                      data: program.outline,
+                      selectable: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -143,13 +204,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     );
 
     if (result == true) {
-      // Refresh location data
-      final updatedLocation = await _locationService.getLocationById(_location.locationId);
-      if (updatedLocation != null && mounted) {
-        setState(() {
-          _location = updatedLocation;
-        });
-      }
+      await _loadRoutinePrograms();
     }
   }
 
@@ -175,17 +230,18 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
 
     if (confirmed == true) {
       try {
-        await _locationService.deleteRoutineProgram(
-          _location.locationId,
-          program.programId,
+        await _routineProgramService.deleteRoutineProgram(program.id);
+        
+        // Also update the location's routineProgramIds
+        await _locationService.updateLocation(
+          locationId: _location.locationId,
+          name: _location.name,
+          equipment: _location.equipment,
+          photoUrls: _location.photoUrls,
+          routineProgramIds: _location.routineProgramIds..remove(program.id),
         );
-        // Refresh location data
-        final updatedLocation = await _locationService.getLocationById(_location.locationId);
-        if (updatedLocation != null && mounted) {
-          setState(() {
-            _location = updatedLocation;
-          });
-        }
+        
+        await _loadRoutinePrograms();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +295,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
           name: _location.name,
           equipment: updatedEquipment,
           photoUrls: _location.photoUrls,
-          routinePrograms: _location.routinePrograms,
+          routineProgramIds: _location.routineProgramIds,
         );
 
         final updatedLocation = await _locationService.getLocationById(_location.locationId);
@@ -557,12 +613,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                       );
 
                       if (result == true) {
-                        final updatedLocation = await _locationService.getLocationById(_location.locationId);
-                        if (updatedLocation != null && mounted) {
-                          setState(() {
-                            _location = updatedLocation;
-                          });
-                        }
+                        await _loadRoutinePrograms();
                       }
                     },
                   ),
@@ -571,7 +622,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             ),
           ),
 
-          if (_location.routinePrograms.isEmpty)
+          if (_routinePrograms.isEmpty)
             const SliverFillRemaining(
               child: Center(
                 child: Text(
@@ -584,7 +635,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  final program = _location.routinePrograms[index];
+                  final program = _routinePrograms[index];
                   return Card(
                     margin: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -592,13 +643,13 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                     ),
                     child: ListTile(
                       title: Text(
-                        program.title,
+                        program.name,
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       subtitle: Text(
-                        program.markdownContent.split('\n').first,
+                        program.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -633,7 +684,7 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                     ),
                   );
                 },
-                childCount: _location.routinePrograms.length,
+                childCount: _routinePrograms.length,
               ),
             ),
         ],

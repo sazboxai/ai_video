@@ -49,7 +49,30 @@ service cloud.firestore {
           && location.name.size() <= 100
           && (!('equipment' in location) || location.equipment is list)
           && (!('photoUrls' in location) || location.photoUrls is list)
-          && (!('routinePrograms' in location) || location.routinePrograms is list);
+          && (!('routineProgramIds' in location) || location.routineProgramIds is list);
+      }
+    }
+    
+    // Routine Programs Collection
+    match /routinePrograms/{programId} {
+      allow read: if request.auth != null;
+      
+      // Only trainers can create routine programs
+      allow create: if request.auth != null
+        && request.auth.uid == request.resource.data.trainerId;
+      
+      // Only the program owner can update/delete
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.trainerId;
+        
+      // Validate routine program data
+      function isValidRoutineProgram() {
+        let program = request.resource.data;
+        return program.name.size() > 0 
+          && program.name.size() <= 100
+          && program.description.size() <= 1000
+          && program.outline.size() <= 5000
+          && (!('equipment' in program) || program.equipment is list);
       }
     }
     

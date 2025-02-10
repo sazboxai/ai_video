@@ -167,9 +167,9 @@ class LocationCard extends StatelessWidget {
                       }).toList(),
                     ),
                   ],
-                  if (location.routinePrograms.isNotEmpty)
+                  if (location.routineProgramIds.isNotEmpty)
                     Text(
-                      '${location.routinePrograms.length} Routine Programs',
+                      '${location.routineProgramIds.length} Routine Programs',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                 ],

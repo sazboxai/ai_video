@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import '../models/location.dart';
-import '../services/location_service.dart';
+import '../models/routine_program.dart';
+import '../services/routine_program_service.dart';
 
 class EditRoutineProgramScreen extends StatefulWidget {
   final String locationId;
@@ -19,9 +19,11 @@ class EditRoutineProgramScreen extends StatefulWidget {
 
 class _EditRoutineProgramScreenState extends State<EditRoutineProgramScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _contentController = TextEditingController();
-  final _locationService = LocationService();
+  final _nameController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _outlineController = TextEditingController();
+  final _routineProgramService = RoutineProgramService();
+  final List<String> _selectedEquipment = [];
   bool _isLoading = false;
   bool _showPreview = false;
 
@@ -29,15 +31,18 @@ class _EditRoutineProgramScreenState extends State<EditRoutineProgramScreen> {
   void initState() {
     super.initState();
     if (widget.program != null) {
-      _titleController.text = widget.program!.title;
-      _contentController.text = widget.program!.markdownContent;
+      _nameController.text = widget.program!.name;
+      _descriptionController.text = widget.program!.description;
+      _outlineController.text = widget.program!.outline;
+      _selectedEquipment.addAll(widget.program!.equipment);
     }
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
+    _nameController.dispose();
+    _descriptionController.dispose();
+    _outlineController.dispose();
     super.dispose();
   }
 
@@ -49,21 +54,21 @@ class _EditRoutineProgramScreenState extends State<EditRoutineProgramScreen> {
     try {
       if (widget.program == null) {
         // Create new program
-        await _locationService.addRoutineProgram(
-          widget.locationId,
-          _titleController.text,
-          _contentController.text,
+        await _routineProgramService.createRoutineProgram(
+          name: _nameController.text,
+          description: _descriptionController.text,
+          equipment: _selectedEquipment,
+          outline: _outlineController.text,
+          locationId: widget.locationId,
         );
       } else {
         // Update existing program
-        final updatedProgram = RoutineProgram(
-          programId: widget.program!.programId,
-          title: _titleController.text,
-          markdownContent: _contentController.text,
-        );
-        await _locationService.updateRoutineProgram(
-          widget.locationId,
-          updatedProgram,
+        await _routineProgramService.updateRoutineProgram(
+          id: widget.program!.id,
+          name: _nameController.text,
+          description: _descriptionController.text,
+          equipment: _selectedEquipment,
+          outline: _outlineController.text,
         );
       }
 
@@ -120,55 +125,124 @@ class _EditRoutineProgramScreenState extends State<EditRoutineProgramScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextFormField(
-                controller: _titleController,
+            TextFormField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'Name',
+                border: OutlineInputBorder(),
+              ),
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a name';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter a description';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Equipment',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: _selectedEquipment
+                          .map((equipment) => Chip(
+                                label: Text(equipment),
+                                onDeleted: () {
+                                  setState(() {
+                                    _selectedEquipment.remove(equipment);
+                                  });
+                                },
+                              ))
+                          .toList(),
+                    ),
+                    TextFormField(
+                      decoration: const InputDecoration(
+                        hintText: 'Add equipment...',
+                        border: OutlineInputBorder(),
+                      ),
+                      onFieldSubmitted: (value) {
+                        if (value.isNotEmpty) {
+                          setState(() {
+                            _selectedEquipment.add(value);
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (_showPreview)
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Preview',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      MarkdownBody(
+                        data: _outlineController.text,
+                        selectable: true,
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              TextFormField(
+                controller: _outlineController,
+                maxLines: null,
+                minLines: 10,
                 decoration: const InputDecoration(
-                  labelText: 'Title',
+                  labelText: 'Outline (Markdown)',
+                  alignLabelWithHint: true,
                   border: OutlineInputBorder(),
+                  hintText: 'Write your routine program using Markdown...',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
+                    return 'Please enter the outline';
                   }
                   return null;
                 },
               ),
-            ),
-            Expanded(
-              child: _showPreview
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Markdown(
-                        data: _contentController.text,
-                        selectable: true,
-                      ),
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: TextFormField(
-                        controller: _contentController,
-                        maxLines: null,
-                        expands: true,
-                        textAlignVertical: TextAlignVertical.top,
-                        decoration: const InputDecoration(
-                          labelText: 'Content (Markdown)',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(),
-                          hintText: 'Write your routine program using Markdown...',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter some content';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-            ),
           ],
         ),
       ),
