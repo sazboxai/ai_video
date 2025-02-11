@@ -7,6 +7,9 @@ import '../models/location.dart';
 import '../models/routine_program.dart' show RoutineProgram;
 import '../services/location_service.dart';
 import '../services/routine_program_service.dart';
+import '../widgets/ai_routine_dialog.dart';
+import '../services/ai_routine_service.dart';
+import '../models/routine_generation_params.dart';
 import 'edit_routine_program_screen.dart';
 import 'edit_location_screen.dart';
 import 'photo_viewer_screen.dart';
@@ -27,6 +30,7 @@ class LocationDetailScreen extends StatefulWidget {
 class _LocationDetailScreenState extends State<LocationDetailScreen> {
   final _locationService = LocationService();
   final _routineProgramService = RoutineProgramService();
+  final _aiRoutineService = AIRoutineService();
   final _pageController = PageController();
   final _imagePicker = ImagePicker();
   final _equipmentController = TextEditingController();
@@ -400,6 +404,60 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
     }
   }
 
+  Future<void> _showAIRoutineDialog() async {
+    final params = await showDialog<RoutineGenerationParams>(
+      context: context,
+      builder: (context) => AIRoutineDialog(
+        availableEquipment: _location.equipment,
+      ),
+    );
+
+    if (params != null) {
+      try {
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        // Generate routine using AI
+        final generatedRoutine = await _aiRoutineService.generateRoutine(params);
+
+        // Hide loading indicator
+        Navigator.of(context).pop();
+
+        // Create the routine program
+        await _routineProgramService.createRoutineProgram(
+          name: generatedRoutine['title'],
+          description: generatedRoutine['description'],
+          equipment: params.selectedEquipment,
+          outline: generatedRoutine['outline'],
+          locationId: _location.locationId,
+        );
+
+        // Refresh the routine programs list
+        await _loadRoutinePrograms();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('AI Routine generated successfully!')),
+          );
+        }
+      } catch (e) {
+        // Hide loading indicator if showing
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to generate routine: $e')),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -600,22 +658,31 @@ class _LocationDetailScreenState extends State<LocationDetailScreen> {
                     'Routine Programs',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: () async {
-                      final result = await Navigator.push<bool>(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditRoutineProgramScreen(
-                            locationId: _location.locationId,
-                          ),
-                        ),
-                      );
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.smart_toy),
+                        onPressed: _showAIRoutineDialog,
+                        tooltip: 'Generate AI Routine',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add),
+                        onPressed: () async {
+                          final result = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => EditRoutineProgramScreen(
+                                locationId: _location.locationId,
+                              ),
+                            ),
+                          );
 
-                      if (result == true) {
-                        await _loadRoutinePrograms();
-                      }
-                    },
+                          if (result == true) {
+                            await _loadRoutinePrograms();
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
