@@ -35,9 +35,23 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
               child: const Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _authService.signOut();
+              onPressed: () async {
+                try {
+                  await _authService.signOut();
+                  if (mounted) {
+                    // First pop the dialog
+                    Navigator.of(context).pop();
+                    // Then navigate to RoleSelectionScreen (root route)
+                    Navigator.of(context).pushNamedAndRemoveUntil(
+                      '/', // This takes us to RoleSelectionScreen since it's the root route
+                      (route) => false, // Clear all routes from stack
+                    );
+                  }
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error signing out: $e')),
+                  );
+                }
               },
               child: const Text('Logout'),
               style: TextButton.styleFrom(foregroundColor: Colors.red),
