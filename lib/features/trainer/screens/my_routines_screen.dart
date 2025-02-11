@@ -21,6 +21,7 @@ class MyRoutinesScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('My Routines'),
         actions: [
           IconButton(

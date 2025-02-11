@@ -147,48 +147,64 @@ exports.generateWorkoutRoutine = functions.https.onCall(async (data, context) =>
 
   try {
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4",
       messages: [
         {
           role: "system",
-          content: "You are an expert fitness trainer. Create a detailed workout routine based on the user's requirements. The response should be in a structured format with a title, description, and a markdown-formatted outline. Focus on proper form, progressive overload, and rest periods."
+          content: `You are an expert fitness trainer. Create a detailed workout routine following these strict formatting rules:
+
+1. Use clear markdown headers:
+   - # for the routine title
+   - ## for each day (Day 1, Day 2, etc.)
+   - ### for sections within each day (Warm-Up, Main Workout, Cool-Down)
+
+2. Structure each day's content:
+   \`\`\`markdown
+   ## Day X
+
+   ### Warm-Up (10 minutes)
+   - Exercise 1: reps × sets | rest time
+   - Exercise 2: reps × sets | rest time
+
+   ### Main Workout (35 minutes)
+   - Exercise 1: reps × sets | rest time
+     * Form cue 1
+     * Form cue 2
+   
+   ### Cool-Down (5 minutes)
+   - Exercise 1: reps × sets
+   - Exercise 2: reps × sets
+   \`\`\`
+
+3. Always include:
+   - Specific rep ranges and sets
+   - Rest periods between sets
+   - Form cues for complex exercises
+   - Clear separation between days using line breaks
+   - Time estimates for each section`
         },
         {
           role: "user",
-          content: `Create a ${numberOfDays}-day workout routine with the following requirements:
-          - Each workout session should last approximately ${durationMinutes} minutes
-          - Main goal: ${fitnessGoal}
-          - Available equipment: ${selectedEquipment.join(', ')}
+          content: `Create a ${numberOfDays}-day workout routine with these requirements:
+- Session duration: ${durationMinutes} minutes
+- Fitness goal: ${fitnessGoal}
+- Available equipment: ${selectedEquipment.join(', ')}
 
-          Please provide the response in the following format:
-          TITLE: [A descriptive name for the routine]
-          DESCRIPTION: [A brief summary of the program]
-          OUTLINE:
-          (A detailed, well-formatted Markdown workout plan)
-          ### **Markdown Formatting Requirements**
-              - Clearly separate each **days workout** with a new section ("### Day X").
-              - Use **bold headers** for muscle groups or workout phases (e.g., "**Warm-Up**", "**Main Workout**", "**Cool-Down**").
-              - Use bullet points ("-"") or numbered lists ("1.") for exercise details.
-              - Include key details for **each exercise**:
-                - Sets, reps, and rest periods.
-                - Important form cues.
-                - Modifications (if applicable).
-              - Ensure readability with **line breaks between sections** to prevent clutter.
-
-          For the outline:
-          - Break down the routine by days
-          - Include sets, reps, and rest periods
-          - Provide form cues for exercises
-          - Include warm-up and cool-down  `
+The response must follow this exact format:
+TITLE: [Descriptive name for the routine]
+DESCRIPTION: [2-3 sentences summarizing the program]
+OUTLINE:
+[Full workout plan in markdown format following the system message structure]`
         }
       ],
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 4000
     });
 
     const content = response.choices[0].message.content;
+    console.log('Raw AI Response:', content);
     
-    // Parse the response
+    // Parse the response with improved handling
     const sections = content.split('\n');
     let title = '';
     let description = '';
@@ -196,34 +212,62 @@ exports.generateWorkoutRoutine = functions.https.onCall(async (data, context) =>
     let currentSection = '';
     
     for (const line of sections) {
-      if (line.startsWith('TITLE:')) {
+      const trimmedLine = line.trim();
+      
+      // Handle both title formats
+      if (trimmedLine.startsWith('# ')) {
+        title = trimmedLine.substring(2).trim();
         currentSection = 'title';
-        title = line.substring(6).trim();
-      } else if (line.startsWith('DESCRIPTION:')) {
+      } else if (trimmedLine.startsWith('TITLE:')) {
+        title = trimmedLine.substring(6).trim();
+        currentSection = 'title';
+      } else if (trimmedLine.startsWith('DESCRIPTION:')) {
         currentSection = 'description';
-        description = line.substring(12).trim();
-      } else if (line.startsWith('OUTLINE:')) {
+        description = trimmedLine.substring(12).trim();
+      } else if (trimmedLine.startsWith('OUTLINE:')) {
         currentSection = 'outline';
-      } else if (line.trim()) {
+      } else if (trimmedLine) {
         switch (currentSection) {
           case 'description':
-            description += '\n' + line.trim();
+            if (!trimmedLine.startsWith('#')) {
+              description += ' ' + trimmedLine;
+            }
             break;
           case 'outline':
-            outline += line + '\n';
+            if (trimmedLine.startsWith('#')) {
+              outline += trimmedLine + '\n\n';
+            } else {
+              outline += trimmedLine + '\n';
+            }
             break;
         }
       }
     }
 
+    // Clean up the text
+    title = title || sections.find(line => line.startsWith('# '))?.substring(2).trim() || '';
+    description = description.trim();
+    outline = outline.trim();
+
+    // Validate the response
+    if (!title || !description || !outline) {
+      console.error('Invalid AI response format:', { title, description, outline });
+      throw new Error('Failed to generate a properly formatted workout routine');
+    }
+
+    // Clean up the outline formatting
+    outline = outline
+      .replace(/\n{3,}/g, '\n\n') // Replace multiple line breaks with double line breaks
+      .trim();
+
     return {
       title,
-      description: description.trim(),
-      outline: outline.trim()
+      description,
+      outline
     };
 
   } catch (error) {
     console.error('Error generating workout routine:', error);
-    throw new functions.https.HttpsError('internal', 'Failed to generate workout routine');
+    throw new functions.https.HttpsError('internal', 'Failed to generate workout routine: ' + error.message);
   }
 });
