@@ -130,6 +130,8 @@ lib/firebase_options.dart
 .env.local
 *.env.json
 .env.template
+.env.*
+.env.fitnessaitrainer
 
 # Log files
 *.log

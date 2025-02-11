@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'locations_screen.dart';
 import 'my_routines_screen.dart';
 import 'profile_screen.dart';
 
@@ -16,43 +17,38 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
 
   final List<Widget> _screens = [
     MyRoutinesScreen(),
+    LocationsScreen(),
     const ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
-    if (index == 2) {
-      _showLogoutDialog();
+    if (index == 3) {
+      // Handle logout
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _authService.signOut();
+              },
+              child: const Text('Logout'),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+            ),
+          ],
+        ),
+      );
     } else {
       setState(() {
         _selectedIndex = index;
       });
-    }
-  }
-
-  Future<void> _showLogoutDialog() async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldLogout == true) {
-      await _authService.signOut();
-      if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
-      }
     }
   }
 
@@ -61,22 +57,27 @@ class _TrainerHomeScreenState extends State<TrainerHomeScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.timer),
-            label: 'My Routines',
+            icon: Icon(Icons.fitness_center),
+            label: 'Routines',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.location_on),
+            label: 'Locations',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.power_settings_new),
+            icon: Icon(Icons.logout),
             label: 'Logout',
           ),
         ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
       ),
     );
   }
