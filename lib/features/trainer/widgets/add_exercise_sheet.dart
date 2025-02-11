@@ -105,10 +105,45 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
     });
   }
 
-  Future<void> _pickVideo() async {
+  Future<void> _showVideoSourceDialog() async {
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Video Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickVideo(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.videocam),
+                title: const Text('Record Video'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickVideo(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickVideo(ImageSource source) async {
     try {
       final ImagePicker picker = ImagePicker();
-      final XFile? pickedFile = await picker.pickVideo(source: ImageSource.gallery);
+      final XFile? pickedFile = await picker.pickVideo(
+        source: source,
+        maxDuration: const Duration(minutes: 1), // Optional: limit video duration
+      );
 
       if (pickedFile != null) {
         final videoFile = File(pickedFile.path);
@@ -394,25 +429,23 @@ class _AddExerciseSheetState extends State<AddExerciseSheet> {
             ],
             const SizedBox(height: 16),
 
-            if (!_isEditing || _videoPath != null) ...[
-              Center(
-                child: ElevatedButton.icon(
-                  onPressed: _isUploading ? null : _pickVideo,
-                  icon: const Icon(Icons.video_call),
-                  label: const Text('Add Video'),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _isUploading ? null : _showVideoSourceDialog,
+                icon: const Icon(Icons.video_call),
+                label: const Text('Add Video'),
+              ),
+            ),
+            if (_videoPath != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Video selected',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              if (_videoPath != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Video selected',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
             ],
             if (_isEditing && _videoPath == null && widget.exercise!.videoUrl != null) ...[
               const SizedBox(height: 8),
