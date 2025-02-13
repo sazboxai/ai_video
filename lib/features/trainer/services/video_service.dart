@@ -145,4 +145,16 @@ class VideoService {
       print('Error deleting video files: $e');
     }
   }
+
+  Future<String?> getPoseVideoUrl(String routineId, String exerciseId) async {
+    try {
+      final ref = FirebaseStorage.instance.ref()
+          .child('exercise_videos/$exerciseId/pose_video.mp4');
+      
+      return await ref.getDownloadURL();
+    } catch (e) {
+      print('No pose video found: $e');
+      return null;
+    }
+  }
 }

@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../screens/create_routine_screen.dart';
 import '../screens/routine_player_screen.dart';
 import '../screens/edit_routine_screen.dart';
+import 'pose_video_viewer_screen.dart';
 
 class MyRoutinesScreen extends StatelessWidget {
   final RoutineService _routineService = RoutineService();
@@ -80,6 +81,16 @@ class MyRoutinesScreen extends StatelessWidget {
                     );
                   }
                 },
+                onPoseView: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PoseVideoViewerScreen(
+                        routine: routine,
+                      ),
+                    ),
+                  );
+                },
               );
             },
           );
@@ -101,11 +112,13 @@ class MyRoutinesScreen extends StatelessWidget {
 class RoutineCard extends StatelessWidget {
   final Routine routine;
   final VoidCallback onDelete;
+  final VoidCallback onPoseView;
 
   const RoutineCard({
     super.key,
     required this.routine,
     required this.onDelete,
+    required this.onPoseView,
   });
 
   @override
@@ -160,6 +173,12 @@ class RoutineCard extends StatelessWidget {
                 icon: const Icon(Icons.delete),
                 tooltip: 'Delete Routine',
                 onPressed: () => _showDeleteDialog(context),
+              ),
+              // Pose View Button
+              IconButton(
+                icon: const Icon(Icons.self_improvement),
+                tooltip: 'View Pose Analysis',
+                onPressed: onPoseView,
               ),
             ],
           ),

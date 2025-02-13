@@ -5,12 +5,18 @@ import '../screens/edit_routine_screen.dart';
 
 class RoutineCard extends StatelessWidget {
   final Routine routine;
+  final VoidCallback? onPlay;
+  final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onPoseView;
 
   const RoutineCard({
     super.key,
     required this.routine,
+    this.onPlay,
+    this.onEdit,
     this.onDelete,
+    this.onPoseView,
   });
 
   @override
@@ -65,6 +71,12 @@ class RoutineCard extends StatelessWidget {
                 icon: const Icon(Icons.delete),
                 tooltip: 'Delete Routine',
                 onPressed: () => _showDeleteDialog(context),
+              ),
+              // Pose View Button
+              IconButton(
+                icon: const Icon(Icons.self_improvement),
+                tooltip: 'View Pose Analysis',
+                onPressed: onPoseView,
               ),
             ],
           ),
