@@ -1,0 +1,234 @@
+Directory structure:
+└── sazboxai-ai_video.git/
+    ├── README.md
+    ├── analysis_options.yaml
+    ├── apphosting.yaml
+    ├── cors.json
+    ├── firebase.json
+    ├── firepit-log.txt
+    ├── firestore.indexes.json
+    ├── firestore.rules
+    ├── pubspec.yaml
+    ├── storage.rules
+    ├── .firebaserc
+    ├── .metadata
+    ├── android/
+    │   ├── gradle.properties
+    │   ├── .gitignore
+    │   ├── app/
+    │   │   └── src/
+    │   │       ├── debug/
+    │   │       │   └── AndroidManifest.xml
+    │   │       ├── main/
+    │   │       │   ├── AndroidManifest.xml
+    │   │       │   ├── kotlin/
+    │   │       │   │   └── com/
+    │   │       │   │       └── example/
+    │   │       │   │           └── ai_video/
+    │   │       │   │               └── MainActivity.kt
+    │   │       │   └── res/
+    │   │       │       ├── drawable/
+    │   │       │       │   └── launch_background.xml
+    │   │       │       ├── drawable-v21/
+    │   │       │       │   └── launch_background.xml
+    │   │       │       ├── mipmap-hdpi/
+    │   │       │       ├── mipmap-mdpi/
+    │   │       │       ├── mipmap-xhdpi/
+    │   │       │       ├── mipmap-xxhdpi/
+    │   │       │       ├── mipmap-xxxhdpi/
+    │   │       │       ├── values/
+    │   │       │       │   └── styles.xml
+    │   │       │       └── values-night/
+    │   │       │           └── styles.xml
+    │   │       └── profile/
+    │   │           └── AndroidManifest.xml
+    │   └── gradle/
+    │       └── wrapper/
+    │           └── gradle-wrapper.properties
+    ├── assets/
+    │   └── vesdk_license.ios
+    ├── bin/
+    │   └── migrate_data.dart
+    ├── functions/
+    │   ├── index.js
+    │   ├── package-lock.json
+    │   ├── package.json
+    │   └── .gitignore
+    ├── intructions/
+    │   ├── firebaserules.txt
+    │   └── overview.md
+    ├── ios/
+    │   ├── Podfile
+    │   ├── .gitignore
+    │   ├── Flutter/
+    │   │   ├── AppFrameworkInfo.plist
+    │   │   ├── Debug.xcconfig
+    │   │   └── Release.xcconfig
+    │   ├── Runner/
+    │   │   ├── AppDelegate.swift
+    │   │   ├── Info.plist
+    │   │   ├── Runner-Bridging-Header.h
+    │   │   ├── vesdk_license
+    │   │   ├── Assets.xcassets/
+    │   │   │   ├── AppIcon.appiconset/
+    │   │   │   │   └── Contents.json
+    │   │   │   └── LaunchImage.imageset/
+    │   │   │       ├── README.md
+    │   │   │       └── Contents.json
+    │   │   └── Base.lproj/
+    │   │       ├── LaunchScreen.storyboard
+    │   │       └── Main.storyboard
+    │   ├── Runner.xcodeproj/
+    │   │   ├── project.pbxproj
+    │   │   ├── project.xcworkspace/
+    │   │   │   ├── contents.xcworkspacedata
+    │   │   │   └── xcshareddata/
+    │   │   │       ├── IDEWorkspaceChecks.plist
+    │   │   │       └── WorkspaceSettings.xcsettings
+    │   │   └── xcshareddata/
+    │   │       └── xcschemes/
+    │   │           └── Runner.xcscheme
+    │   ├── Runner.xcworkspace/
+    │   │   ├── contents.xcworkspacedata
+    │   │   └── xcshareddata/
+    │   │       ├── IDEWorkspaceChecks.plist
+    │   │       └── WorkspaceSettings.xcsettings
+    │   └── RunnerTests/
+    │       └── RunnerTests.swift
+    ├── lib/
+    │   ├── main.dart
+    │   └── features/
+    │       ├── authentication/
+    │       │   ├── models/
+    │       │   │   ├── auth_state.dart
+    │       │   │   └── user_role.dart
+    │       │   ├── screens/
+    │       │   │   ├── auth_screen.dart
+    │       │   │   └── role_selection_screen.dart
+    │       │   └── services/
+    │       │       └── auth_service.dart
+    │       ├── home/
+    │       │   └── screens/
+    │       │       └── home_screen.dart
+    │       └── trainer/
+    │           ├── models/
+    │           │   ├── exercise.dart
+    │           │   ├── exercise_ref.dart
+    │           │   ├── location.dart
+    │           │   ├── routine.dart
+    │           │   ├── routine_generation_params.dart
+    │           │   ├── routine_program.dart
+    │           │   └── trainer_profile.dart
+    │           ├── screens/
+    │           │   ├── add_location_screen.dart
+    │           │   ├── create_routine_screen.dart
+    │           │   ├── edit_location_screen.dart
+    │           │   ├── edit_routine_program_screen.dart
+    │           │   ├── edit_routine_screen.dart
+    │           │   ├── exercise_form_screen.dart
+    │           │   ├── location_detail_screen.dart
+    │           │   ├── locations_screen.dart
+    │           │   ├── manage_exercises_screen.dart
+    │           │   ├── my_routines_screen.dart
+    │           │   ├── photo_viewer_screen.dart
+    │           │   ├── profile_screen.dart
+    │           │   ├── profile_setup_screen.dart
+    │           │   ├── routine_player_screen.dart
+    │           │   ├── trainer_home_screen.dart
+    │           │   └── video_editor_screen.dart
+    │           ├── services/
+    │           │   ├── ai_routine_service.dart
+    │           │   ├── auth_service.dart
+    │           │   ├── exercise_service.dart
+    │           │   ├── location_service.dart
+    │           │   ├── profile_service.dart
+    │           │   ├── routine_program_service.dart
+    │           │   ├── routine_service.dart
+    │           │   └── video_service.dart
+    │           ├── utils/
+    │           │   ├── data_migration.dart
+    │           │   └── exercise_constants.dart
+    │           └── widgets/
+    │               ├── add_exercise_sheet.dart
+    │               ├── ai_routine_dialog.dart
+    │               ├── edit_exercise_sheet.dart
+    │               ├── exercise_card.dart
+    │               ├── location_photo_grid.dart
+    │               ├── routine_card.dart
+    │               └── video_preview_dialog.dart
+    ├── linux/
+    │   ├── CMakeLists.txt
+    │   ├── .gitignore
+    │   ├── flutter/
+    │   │   ├── CMakeLists.txt
+    │   │   ├── generated_plugin_registrant.cc
+    │   │   ├── generated_plugin_registrant.h
+    │   │   └── generated_plugins.cmake
+    │   └── runner/
+    │       ├── CMakeLists.txt
+    │       ├── main.cc
+    │       ├── my_application.cc
+    │       └── my_application.h
+    ├── macos/
+    │   ├── Podfile
+    │   ├── .gitignore
+    │   ├── Flutter/
+    │   │   ├── Flutter-Debug.xcconfig
+    │   │   └── Flutter-Release.xcconfig
+    │   ├── Runner/
+    │   │   ├── AppDelegate.swift
+    │   │   ├── DebugProfile.entitlements
+    │   │   ├── Info.plist
+    │   │   ├── MainFlutterWindow.swift
+    │   │   ├── Release.entitlements
+    │   │   ├── Assets.xcassets/
+    │   │   │   └── AppIcon.appiconset/
+    │   │   │       └── Contents.json
+    │   │   ├── Base.lproj/
+    │   │   │   └── MainMenu.xib
+    │   │   └── Configs/
+    │   │       ├── AppInfo.xcconfig
+    │   │       ├── Debug.xcconfig
+    │   │       ├── Release.xcconfig
+    │   │       └── Warnings.xcconfig
+    │   ├── Runner.xcodeproj/
+    │   │   ├── project.pbxproj
+    │   │   ├── project.xcworkspace/
+    │   │   │   └── xcshareddata/
+    │   │   │       └── IDEWorkspaceChecks.plist
+    │   │   └── xcshareddata/
+    │   │       └── xcschemes/
+    │   │           └── Runner.xcscheme
+    │   ├── Runner.xcworkspace/
+    │   │   ├── contents.xcworkspacedata
+    │   │   └── xcshareddata/
+    │   │       └── IDEWorkspaceChecks.plist
+    │   └── RunnerTests/
+    │       └── RunnerTests.swift
+    ├── test/
+    │   └── widget_test.dart
+    ├── web/
+    │   ├── index.html
+    │   ├── manifest.json
+    │   └── icons/
+    └── windows/
+        ├── CMakeLists.txt
+        ├── .gitignore
+        ├── flutter/
+        │   ├── CMakeLists.txt
+        │   ├── generated_plugin_registrant.cc
+        │   ├── generated_plugin_registrant.h
+        │   └── generated_plugins.cmake
+        └── runner/
+            ├── CMakeLists.txt
+            ├── Runner.rc
+            ├── flutter_window.cpp
+            ├── flutter_window.h
+            ├── main.cpp
+            ├── resource.h
+            ├── runner.exe.manifest
+            ├── utils.cpp
+            ├── utils.h
+            ├── win32_window.cpp
+            ├── win32_window.h
+            └── resources/
